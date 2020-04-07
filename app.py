@@ -105,6 +105,10 @@ def filter_library_histogram(search_values):
         page_size= 10,
     )
 
+    import gc
+    del filtered_df
+    gc.collect()
+
     return [dcc.Graph(figure=fig1), dcc.Graph(figure=fig2), table_fig]
 
 if __name__ == "__main__":
