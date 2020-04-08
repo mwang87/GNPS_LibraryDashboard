@@ -46,38 +46,37 @@ NAVBAR = dbc.Navbar(
 )
 
 DASHBOARD = [
-    html.H1(children='GNPS Library Summary Dashboard'),
-    html.Div(id='version', children="Version - Release_1"),
-    dcc.Graph(figure=px.histogram(library_df, x="Precursor_MZ", color="library_membership")),
-    html.H2(children='Library Selection'),
-    dcc.Dropdown(
-        id='library-filter',
-        options=dropdown_list,
-        value=["GNPS-LIBRARY"],
-        multi=True
-    ),
-    html.Div([
-        dcc.Loading(
-            id="library-mz-histogram",
-            children=[html.Div([html.Div(id="loading-output-2")])],
-            type="default",
-        )
-    ]),
-    html.Div([
-        dcc.Loading(
-            id="library-instrument-histogram",
-            children=[html.Div([html.Div(id="loading-output-3")])],
-            type="default",
-        )
-    ]),
-    html.H2(children='Library Table List'),
-    html.Div([
-        dcc.Loading(
-            id="library-table",
-            children=[html.Div([html.Div(id="loading-output-4")])],
-            type="default",
-        )
-    ])
+    dbc.CardHeader(html.H5("GNPS Library Summary Dashboard")),
+    dbc.CardBody(
+        [
+            html.Div(id='version', children="Version - Release_1"),
+            dcc.Graph(figure=px.histogram(library_df, x="Precursor_MZ", color="library_membership")),
+            
+            html.H2(children='Library Selection'),
+            dcc.Dropdown(
+                id='library-filter',
+                options=dropdown_list,
+                value=["GNPS-LIBRARY"],
+                multi=True
+            ),
+            dcc.Loading(
+                id="library-mz-histogram",
+                children=[html.Div([html.Div(id="loading-output-2")])],
+                type="default",
+            ),
+            dcc.Loading(
+                id="library-instrument-histogram",
+                children=[html.Div([html.Div(id="loading-output-3")])],
+                type="default",
+            ),
+            html.H2(children='Library Table List'),
+            dcc.Loading(
+                id="library-table",
+                children=[html.Div([html.Div(id="loading-output-4")])],
+                type="default",
+            )
+        ]
+    )
 ]
 
 BODY = dbc.Container(
