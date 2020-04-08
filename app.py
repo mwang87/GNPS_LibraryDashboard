@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import dash
 import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 import plotly.express as px
@@ -14,10 +15,8 @@ import pandas as pd
 import requests
 
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
 server = Flask(__name__)
-app = dash.Dash(__name__, server=server, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 #Loading Data
@@ -28,42 +27,66 @@ library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 library_names = list(set(library_df["library_membership"]))
 dropdown_list = [{"label" : library_name, "value": library_name} for library_name in library_names]
 
-app.layout = html.Div(
-    [
-        html.H1(children='GNPS Library Summary Dashboard'),
-        html.Div(id='version', children="Version - Release_1"),
-        dcc.Graph(figure=px.histogram(library_df, x="Precursor_MZ", color="library_membership")),
-        html.H2(children='Library Selection'),
-        dcc.Dropdown(
-            id='library-filter',
-            options=dropdown_list,
-            value=["GNPS-LIBRARY"],
-            multi=True
+
+NAVBAR = dbc.NavbarSimple(
+    children=[
+        html.A(
+            # Use row and col to control vertical alignment of logo / brand
+            html.Img(src="https://gnps-cytoscape.ucsd.edu/static/img/GNPS_logo.png", width="120px"),
+            href="https://gnps.ucsd.edu"
         ),
-        html.Div([
-            dcc.Loading(
-                id="library-mz-histogram",
-                children=[html.Div([html.Div(id="loading-output-2")])],
-                type="default",
-            )
-        ]),
-        html.Div([
-            dcc.Loading(
-                id="library-instrument-histogram",
-                children=[html.Div([html.Div(id="loading-output-3")])],
-                type="default",
-            )
-        ]),
-        html.H2(children='Library Table List'),
-        html.Div([
-            dcc.Loading(
-                id="library-table",
-                children=[html.Div([html.Div(id="loading-output-4")])],
-                type="default",
-            )
-        ])
-    ]
+        dbc.NavItem(
+            dbc.NavLink("GNPS Library Explorer Dashboard", href="/#")
+        ),
+    ],
+    color="light",
+    dark=False,
+    sticky="top",
 )
+
+DASHBOARD = [
+    html.H1(children='GNPS Library Summary Dashboard'),
+    html.Div(id='version', children="Version - Release_1"),
+    dcc.Graph(figure=px.histogram(library_df, x="Precursor_MZ", color="library_membership")),
+    html.H2(children='Library Selection'),
+    dcc.Dropdown(
+        id='library-filter',
+        options=dropdown_list,
+        value=["GNPS-LIBRARY"],
+        multi=True
+    ),
+    html.Div([
+        dcc.Loading(
+            id="library-mz-histogram",
+            children=[html.Div([html.Div(id="loading-output-2")])],
+            type="default",
+        )
+    ]),
+    html.Div([
+        dcc.Loading(
+            id="library-instrument-histogram",
+            children=[html.Div([html.Div(id="loading-output-3")])],
+            type="default",
+        )
+    ]),
+    html.H2(children='Library Table List'),
+    html.Div([
+        dcc.Loading(
+            id="library-table",
+            children=[html.Div([html.Div(id="loading-output-4")])],
+            type="default",
+        )
+    ])
+]
+
+BODY = dbc.Container(
+    [
+        dbc.Row([dbc.Col(dbc.Card(DASHBOARD)),], style={"marginTop": 30}),
+    ],
+    className="mt-12",
+)
+
+app.layout = html.Div(children=[NAVBAR, BODY])
 
 # This function will rerun at any 
 @app.callback(
