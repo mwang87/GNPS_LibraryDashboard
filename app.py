@@ -28,16 +28,17 @@ library_names = list(set(library_df["library_membership"]))
 dropdown_list = [{"label" : library_name, "value": library_name} for library_name in library_names]
 
 
-NAVBAR = dbc.NavbarSimple(
+NAVBAR = dbc.Navbar(
     children=[
-        html.A(
-            # Use row and col to control vertical alignment of logo / brand
+        dbc.NavbarBrand(
             html.Img(src="https://gnps-cytoscape.ucsd.edu/static/img/GNPS_logo.png", width="120px"),
             href="https://gnps.ucsd.edu"
         ),
-        dbc.NavItem(
-            dbc.NavLink("GNPS Library Explorer Dashboard", href="/#")
-        ),
+        dbc.Nav(
+            [
+                dbc.NavItem(dbc.NavLink("GNPS Library Explorer Dashboard", href="#")),
+            ],
+        navbar=True)
     ],
     color="light",
     dark=False,
