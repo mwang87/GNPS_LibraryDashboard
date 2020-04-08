@@ -21,7 +21,7 @@ app = dash.Dash(__name__, server=server, external_stylesheets=external_styleshee
 server = app.server
 
 #Loading Data
-library_df = pd.DataFrame(requests.get("https://gnps-external.ucsd.edu/gnpslibraryjson").json()[:100])
+library_df = pd.DataFrame(requests.get("https://gnps-external.ucsd.edu/gnpslibraryjson").json())
 library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 
 # Formatting options
