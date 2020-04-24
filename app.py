@@ -21,6 +21,7 @@ server = app.server
 
 #Loading Data
 library_df = pd.DataFrame(requests.get("https://gnps-external.ucsd.edu/gnpslibraryjson").json())
+library_df = library_df[["spectrum_id", "library_membership", "Compound_Name", "Ion_Source", "Instrument", "create_time", "Precursor_MZ"]]
 library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 
 # Formatting options
