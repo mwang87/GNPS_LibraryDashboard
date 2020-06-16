@@ -28,6 +28,8 @@ library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 library_names = list(set(library_df["library_membership"]))
 dropdown_list = [{"label" : library_name, "value": library_name} for library_name in library_names]
 
+# All Library Classification
+classyfire_df = pd.read_csv("notebooks/class_data.tsv", sep="\t")
 
 NAVBAR = dbc.Navbar(
     children=[
@@ -52,6 +54,7 @@ DASHBOARD = [
         [
             html.Div(id='version', children="Version - Release_1"),
             dcc.Graph(figure=px.histogram(library_df, x="Precursor_MZ", color="library_membership")),
+            dcc.Graph(figure=px.histogram(classyfire_df, x="Precursor_MZ", color="class")),
             
             html.H2(children='Library Selection'),
             dcc.Dropdown(
