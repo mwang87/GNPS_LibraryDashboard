@@ -21,63 +21,39 @@ def task_computeheartbeat():
     return "Up"
 
 @celery_instance.task(time_limit=3600)
-def library_download():
+def task_library_download():
     library_list = requests.get("https://gnps-external.ucsd.edu/gnpslibrary.json").json()
 
     for library_obj in library_list:
         library_url = "https://gnps-external.ucsd.edu/gnpslibrary/{}.json".format(library_obj["library"])
-        print(library_url)
         library_spectra_list = requests.get(library_url).json()
-        
+
         # Read into pandas without peaks and inject into database
-    
-    
+        library_df = pd.DataFrame(library_spectra_list)
+        library_df = library_df[["spectrum_id", "library_membership", "submit_user", "Pubmed_ID", "PI", "Data_Collector", "Ion_Mode", "Precursor_MZ", "Compound_Name"]]
 
-    # # Making sure the connection is good
-    # try:
-    #     all_tables = con.get_tables()   
-    # except:
-    #     # Probably a bad connection
-    #     con = get_connection()
-    #     print("RETRYING CONNECTION")
-        
-    # all_tables = con.get_tables()
-    # print(all_tables)
+        # Putting into ominisci
+        table_name = "gnpslibrary"
+        con = get_connection()
+        try:
+            # Creating table
+            con.create_table(table_name, library_df)
+        except:
+            pass
 
-    # if table_name in all_tables:
-    #     return "DONE"
+        # Cleaning up table
+        omni_cursor = con.cursor()
+        query = "DELETE FROM {} WHERE library_membership='{}';".format(table_name, library_obj["library"])
+        omni_cursor.execute(query)
 
-    # task = usi.split(":")[2].split("-")[1]
-    # file_path = usi.split(":")[2].split("-")[2]
+        # Loading data
+        pa_df = pa.Table.from_pandas(library_df)
+        con.load_table_arrow(table_name, pa_df)
 
-    # temp_tsv = output_feather + ".tsv"
-
-    # # TODO: chunk this
-    # url = "https://proteomics2.ucsd.edu/ProteoSAFe/DownloadResultFile?task={}&file={}&block=main&process_html=false".format(task, file_path)
-    # # Put file locally
-    # with requests.get(url, stream=True) as r:
-    #     with open(temp_tsv, 'wb') as f:
-    #         shutil.copyfileobj(r.raw, f)
-
-    # for chunk_df in pd.read_csv(temp_tsv, sep="\t", chunksize=100000):
-    #     # Putting into ominisci
-    #     try:
-    #         # Creating table
-    #         con.create_table(table_name, chunk_df)
-    #     except:
-    #         pass
-
-    #     # Loading data
-    #     pa_df = pa.Table.from_pandas(chunk_df)
-    #     con.load_table_arrow(table_name, pa_df)
-    
-    # # TODO: Cleanup 
-    
-    # return "DONE"
 
 @celery_instance.task(time_limit=30)
-def query_data(usi, parameters):
-    table_name = get_table_name(usi)
+def task_query_data(parameters):
+    table_name = "gnpslibrary"
 
     page_size = parameters.get("page_size", 20)
     sql_query = "SELECT * FROM {}".format(table_name)
@@ -101,7 +77,6 @@ def query_data(usi, parameters):
             if operator == "contains":
                 where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
 
-            print(filter_splits)
         if len(where_clauses) > 0:
             sql_query_suffix += " WHERE " + " AND ".join(where_clauses)
             sql_count_suffix += " WHERE " + " AND ".join(where_clauses)
@@ -123,15 +98,8 @@ def query_data(usi, parameters):
     sql_query_suffix += " LIMIT {} OFFSET {}".format(page_size, parameters.get("page_current", 0) * page_size)
 
     # Making sure the connection is good
-    try:
-        all_tables = con.get_tables()   
-    except:
-        # Probably a bad connection
-        con = get_connection()
-        print("RETRYING CONNECTION")
-
-    
     print(sql_query)
+    con = get_connection()
     results_df = pd.read_sql(sql_query + sql_query_suffix, con)
 
     # Counting total records
@@ -183,8 +151,13 @@ def query_histogram(usi, parameters):
 
 celery_instance.conf.task_routes = {
     'tasks.task_computeheartbeat': {'queue': 'worker'},
-    'tasks.task_download': {'queue': 'worker'},
-    'tasks.query_data': {'queue': 'worker'},
-    'tasks.query_histogram': {'queue': 'worker'},
-    
+    'tasks.task_library_download': {'queue': 'worker'},
+    'tasks.task_query_data': {'queue': 'worker'},    
+}
+
+celery_instance.conf.beat_schedule = {
+    "cleanup": {
+        "task": "tasks.task_library_download",
+        "schedule": 300
+    }
 }

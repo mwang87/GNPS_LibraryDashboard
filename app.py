@@ -186,10 +186,7 @@ PAGE_SIZE = 20
                   Input('usi1', 'value'),
             ])
 def draw_output(usi1):
-    result = tasks.library_download.delay()
-    result.get()
-    
-    result = tasks.query_data.delay(usi1, {})
+    result = tasks.task_query_data.delay({})
     results_list, results_count = result.get()
 
     table_obj = dash_table.DataTable(
@@ -226,7 +223,7 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
     query_parameters["filter"] = filter
 
     try:
-        result = tasks.query_data.delay(usi1, query_parameters)
+        result = tasks.task_query_data.delay(query_parameters)
         results_list, results_count = result.get()
     except:
         return [[], 0, "Query Error"]
@@ -265,7 +262,12 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
 # API
 @server.route("/api")
 def api():
-    return "Up"    
+    return "Up"
+
+@server.route("/load")
+def load():
+    tasks.task_library_download.delay()
+    return "Loading"
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=5000, host="0.0.0.0")
