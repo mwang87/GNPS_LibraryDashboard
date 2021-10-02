@@ -5,31 +5,45 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 import plotly.express as px
-from dash.dependencies import Input, Output
+import plotly.graph_objects as go 
+from dash.dependencies import Input, Output, State
 import os
 from zipfile import ZipFile
 import urllib.parse
-from flask import Flask
+from flask import Flask, send_from_directory
 
 import pandas as pd
 import requests
+import uuid
+import werkzeug
+import math
+
+import numpy as np
+from tqdm import tqdm
+import urllib
+import json
+
+from collections import defaultdict
+import uuid
+
+import werkzeug
+from flask_caching import Cache
+import tasks
+
 
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app.title = 'GNPS - Template'
+
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'filesystem',
+    'CACHE_DIR': 'temp/flask-cache',
+    'CACHE_DEFAULT_TIMEOUT': 0,
+    'CACHE_THRESHOLD': 10000
+})
+
 server = app.server
-
-#Loading Data
-library_df = pd.DataFrame(requests.get("https://gnps-external.ucsd.edu/gnpslibraryjson").json())
-library_df = library_df[["spectrum_id", "library_membership", "Compound_Name", "Ion_Source", "Instrument", "create_time", "Precursor_MZ"]]
-library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
-
-# Formatting options
-library_names = list(set(library_df["library_membership"]))
-dropdown_list = [{"label" : library_name, "value": library_name} for library_name in library_names]
-
-# All Library Classification
-classyfire_df = pd.read_csv("notebooks/class_data.tsv", sep="\t")
 
 NAVBAR = dbc.Navbar(
     children=[
@@ -39,7 +53,7 @@ NAVBAR = dbc.Navbar(
         ),
         dbc.Nav(
             [
-                dbc.NavItem(dbc.NavLink("GNPS Library Explorer Dashboard", href="#")),
+                dbc.NavItem(dbc.NavLink("GNPS - Template Dashboard - Version 0.1", href="#")),
             ],
         navbar=True)
     ],
@@ -48,95 +62,210 @@ NAVBAR = dbc.Navbar(
     sticky="top",
 )
 
-DASHBOARD = [
-    dbc.CardHeader(html.H5("GNPS Library Summary Dashboard")),
+DATASELECTION_CARD = [
+    dbc.CardHeader(html.H5("Data Selection")),
+    dbc.CardBody(
+        [   
+            html.H5(children='GNPS Data Selection'),
+            dbc.InputGroup(
+                [
+                    dbc.InputGroupAddon("Table USI", addon_type="prepend"),
+                    dbc.Input(id='usi1', placeholder="Table USI", value=""),
+                ],
+                className="mb-3",
+            ),
+        ]
+    )
+]
+
+LEFT_DASHBOARD = [
+    html.Div(
+        [
+            html.Div(DATASELECTION_CARD),
+        ]
+    )
+]
+
+MIDDLE_DASHBOARD = [
+    dbc.CardHeader(html.H5("Data Exploration")),
     dbc.CardBody(
         [
-            html.Div(id='version', children="Version - Release_1"),
-            dcc.Graph(figure=px.histogram(library_df, x="Precursor_MZ", color="library_membership")),
-            dcc.Graph(figure=px.histogram(classyfire_df, x="Precursor_MZ", color="class")),
-            
-            html.H2(children='Library Selection'),
-            dcc.Dropdown(
-                id='library-filter',
-                options=dropdown_list,
-                value=["GNPS-LIBRARY"],
-                multi=True
-            ),
+            html.Div(id="query_summary"),
+            html.Br(),
             dcc.Loading(
-                id="library-mz-histogram",
-                children=[html.Div([html.Div(id="loading-output-2")])],
+                id="output",
+                children=[html.Div([html.Div(id="loading-output-23")])],
                 type="default",
             ),
-            dcc.Loading(
-                id="library-instrument-histogram",
-                children=[html.Div([html.Div(id="loading-output-3")])],
-                type="default",
-            ),
-            html.H2(children='Library Table List'),
-            dcc.Loading(
-                id="library-table",
-                children=[html.Div([html.Div(id="loading-output-4")])],
-                type="default",
-            )
+            html.Br(),
+            html.Div(id="plots")
+        ]
+    )
+]
+
+CONTRIBUTORS_DASHBOARD = [
+    dbc.CardHeader(html.H5("Contributors")),
+    dbc.CardBody(
+        [
+            "Mingxun Wang PhD - UC San Diego",
+            html.Br(),
+            html.Br(),
+            html.H5("Citation"),
+            html.A('Mingxun Wang, Jeremy J. Carver, Vanessa V. Phelan, Laura M. Sanchez, Neha Garg, Yao Peng, Don Duy Nguyen et al. "Sharing and community curation of mass spectrometry data with Global Natural Products Social Molecular Networking." Nature biotechnology 34, no. 8 (2016): 828. PMID: 27504778', 
+                    href="https://www.nature.com/articles/nbt.3597")
+        ]
+    )
+]
+
+EXAMPLES_DASHBOARD = [
+    dbc.CardHeader(html.H5("Examples")),
+    dbc.CardBody(
+        [
+            html.A('MassIVE-KB Candidate Spectra', 
+                    href="/?usi1=mzspec:GNPS:TASK-3ba5c4280636448eb4504e3e3a2f3e25-all_library_spectrum_candidates_file/"),
         ]
     )
 ]
 
 BODY = dbc.Container(
     [
-        dbc.Row([dbc.Col(dbc.Card(DASHBOARD)),], style={"marginTop": 30}),
+        dcc.Location(id='url', refresh=False),
+        dbc.Row([
+            dbc.Col(
+                dbc.Card(LEFT_DASHBOARD),
+                className="w-50"
+            ),
+            dbc.Col(
+                [
+                    dbc.Card(CONTRIBUTORS_DASHBOARD),
+                    html.Br(),
+                    dbc.Card(EXAMPLES_DASHBOARD)
+                ],
+                className="w-50"
+            ),
+        ], style={"marginTop": 30}),
+        html.Br(),
+        dbc.Row([
+            dbc.Col(
+                dbc.Card(MIDDLE_DASHBOARD),
+            )
+        ])
     ],
-    className="mt-12",
+    fluid=True,
+    className="",
 )
 
 app.layout = html.Div(children=[NAVBAR, BODY])
 
-# This function will rerun at any 
-@app.callback(
-    [Output('library-mz-histogram', 'children'), Output('library-instrument-histogram', 'children'), Output('library-table', 'children')],
-    [Input('library-filter', 'value')],
-)
-def filter_library_histogram(search_values):
+def _get_url_param(param_dict, key, default):
+    return param_dict.get(key, [default])[0]
 
-    filtered_df = library_df[library_df["library_membership"].isin(search_values)]
-    fig1 = px.histogram(filtered_df, x="Precursor_MZ", color="library_membership")
-    fig1.update_layout(
-        autosize=True,
-        height=600,
-    )
+@app.callback([
+                Output('usi1', 'value'),
+              ],
+              [Input('url', 'search')])
+def determine_task(search):
+    
+    try:
+        query_dict = urllib.parse.parse_qs(search[1:])
+    except:
+        query_dict = {}
 
-    fig2 = px.histogram(filtered_df, x="Instrument")
-    fig2.update_layout(
-        autosize=True,
-        height=600,
-    )
+    usi1 = _get_url_param(query_dict, "usi1", 'mzspec:GNPS:TASK-689f06f4bc2b4799828c63eef1dc522a-query_results/msql/merged_query_results.tsv')
 
-    white_list_columns = ["spectrum_id", "library_membership", "Compound_Name", "Ion_Source", "Instrument", "create_time", "Precursor_MZ"]
-    table_fig = dash_table.DataTable(
+    return [usi1]
+
+
+import sys
+PAGE_SIZE = 20
+
+@app.callback([
+                Output('output', 'children')
+              ],
+              [
+                  Input('usi1', 'value'),
+            ])
+def draw_output(usi1):
+    result = tasks.library_download.delay()
+    result.get()
+    
+    result = tasks.query_data.delay(usi1, {})
+    results_list, results_count = result.get()
+
+    table_obj = dash_table.DataTable(
+        id='datatable',
         columns=[
-            {"name": i, "id": i, "deletable": True, "selectable": True} for i in white_list_columns
+            {"name": i, "id": i} for i in sorted(results_list[0])
         ],
-        data=filtered_df.to_dict('records'),
-        editable=True,
-        filter_action="native",
-        sort_action="native",
-        sort_mode="multi",
-        column_selectable="single",
-        row_selectable="multi",
-        row_deletable=True,
-        selected_columns=[],
-        selected_rows=[],
-        page_action="native",
-        page_current= 0,
-        page_size= 10,
+        page_current=0,
+        page_size=PAGE_SIZE,
+        sort_action="custom",
+        page_action='custom',
+        filter_action='custom'
     )
 
-    import gc
-    del filtered_df
-    gc.collect()
+    return [table_obj]
 
-    return [dcc.Graph(figure=fig1), dcc.Graph(figure=fig2), table_fig]
+@app.callback([
+        Output('datatable', 'data'),
+        Output('datatable', 'page_count'),
+        Output('query_summary', 'children')
+    ],
+    [
+        Input('usi1', 'value'),
+        Input('datatable', "page_current"),
+        Input('datatable', "page_size"),
+        Input('datatable', 'sort_by'),
+        Input('datatable', "filter_query")
+    ])
+def update_table(usi1, page_current, page_size, sort_by, filter):
+    query_parameters = {}
+    query_parameters["page_current"] = page_current
+    query_parameters["page_size"] = page_size
+    query_parameters["sort_by"] = sort_by
+    query_parameters["filter"] = filter
+
+    try:
+        result = tasks.query_data.delay(usi1, query_parameters)
+        results_list, results_count = result.get()
+    except:
+        return [[], 0, "Query Error"]
+
+    page_count = math.ceil(results_count / page_size)
+
+    return [results_list, page_count, "Total Results {}".format(results_count)]
+
+
+@app.callback([
+        Output('plots', 'children')
+    ],
+    [
+        Input('usi1', 'value'),
+        Input('datatable', "page_current"),
+        Input('datatable', "page_size"),
+        Input('datatable', 'sort_by'),
+        Input('datatable', "filter_query")
+    ])
+def update_table(usi1, page_current, page_size, sort_by, filter):
+    query_parameters = {}
+    query_parameters["page_current"] = page_current
+    query_parameters["page_size"] = page_size
+    query_parameters["sort_by"] = sort_by
+    query_parameters["filter"] = filter
+
+    try:
+        result = tasks.query_histogram.delay(usi1, query_parameters)
+        #results_list, results_count = result.get()
+    except:
+        pass
+        #return [[], 0, "Query Error"]
+
+    return [["Plots Here"]]
+
+# API
+@server.route("/api")
+def api():
+    return "Up"    
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=5000, host="0.0.0.0")

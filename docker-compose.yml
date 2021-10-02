@@ -18,8 +18,56 @@ services:
       VIRTUAL_PORT: 6546
       LETSENCRYPT_HOST: gnpslibrary.ucsd.edu
       LETSENCRYPT_EMAIL: miw023@ucsd.edu
-    restart: unless-stopped
+    restart: on-failure
     command: /app/run_server.sh
+
+  gnpslibrary-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gnpslibrary-worker
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./temp:/app/temp:rw
+    command: /app/run_worker.sh
+    restart: on-failure
+    depends_on: 
+      - gnpslibrary-redis
+      - gnpslibrary-rabbitmq
+    networks:
+      - default
+      - nginx-net
+
+  gnpslibrary-omniscidb:
+    build:
+      context: .
+      dockerfile: Dockerfile.omnisci
+    container_name: gnpslibrary-omniscidb
+    image: omnisci/core-os-cpu
+    restart: on-failure
+    networks:
+      - default
+    volumes:
+      - ./temp/omnisci:/omnisci-storage
+    deploy:
+      resources:
+        limits:
+          memory: 24000M
+          cpus: "4.0"
+
+  gnpslibrary-rabbitmq:
+    container_name: gnpslibrary-rabbitmq
+    image: rabbitmq
+    restart: on-failure
+    networks:
+      - default
+
+  gnpslibrary-redis:
+    container_name: gnpslibrary-redis
+    image: redis
+    restart: on-failure
+    networks:
+      - default
 
 
 networks:
