@@ -151,8 +151,8 @@ def query_histogram(usi, parameters):
 
 celery_instance.conf.task_routes = {
     'tasks.task_computeheartbeat': {'queue': 'worker'},
-    'tasks.task_library_download': {'queue': 'worker'},
-    'tasks.task_query_data': {'queue': 'worker'},    
+    'tasks.task_query_data': {'queue': 'worker'},
+    'tasks.task_library_download': {'queue': 'workerload'},
 }
 
 celery_instance.conf.beat_schedule = {

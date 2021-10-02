@@ -38,6 +38,23 @@ services:
       - default
       - nginx-net
 
+  gnpslibrary-loadworker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gnpslibrary-loadworker
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./temp:/app/temp:rw
+    command: /app/run_workerload.sh
+    restart: on-failure
+    depends_on: 
+      - gnpslibrary-redis
+      - gnpslibrary-rabbitmq
+    networks:
+      - default
+      - nginx-net
+
   gnpslibrary-omniscidb:
     build:
       context: .
