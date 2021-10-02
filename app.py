@@ -53,7 +53,7 @@ NAVBAR = dbc.Navbar(
         ),
         dbc.Nav(
             [
-                dbc.NavItem(dbc.NavLink("GNPS - Template Dashboard - Version 0.1", href="#")),
+                dbc.NavItem(dbc.NavLink("GNPS - Library Explorer - Version 0.1", href="#")),
             ],
         navbar=True)
     ],
@@ -87,7 +87,7 @@ LEFT_DASHBOARD = [
 ]
 
 MIDDLE_DASHBOARD = [
-    dbc.CardHeader(html.H5("Data Exploration")),
+    dbc.CardHeader(html.H5("Library Exploration")),
     dbc.CardBody(
         [
             html.Div(id="query_summary"),
@@ -132,6 +132,12 @@ BODY = dbc.Container(
         dcc.Location(id='url', refresh=False),
         dbc.Row([
             dbc.Col(
+                dbc.Card(MIDDLE_DASHBOARD),
+            )
+        ], style={"marginTop": 30}),
+        html.Br(),
+        dbc.Row([
+            dbc.Col(
                 dbc.Card(LEFT_DASHBOARD),
                 className="w-50"
             ),
@@ -143,12 +149,6 @@ BODY = dbc.Container(
                 ],
                 className="w-50"
             ),
-        ], style={"marginTop": 30}),
-        html.Br(),
-        dbc.Row([
-            dbc.Col(
-                dbc.Card(MIDDLE_DASHBOARD),
-            )
         ])
     ],
     fluid=True,

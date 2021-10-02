@@ -20,6 +20,10 @@ services:
       LETSENCRYPT_EMAIL: miw023@ucsd.edu
     restart: on-failure
     command: /app/run_server.sh
+    deploy:
+      resources:
+        limits:
+          memory: 2000M
 
   gnpslibrary-worker:
     build:
@@ -37,6 +41,10 @@ services:
     networks:
       - default
       - nginx-net
+    deploy:
+      resources:
+        limits:
+          memory: 1000M
 
   gnpslibrary-loadworker:
     build:
@@ -54,6 +62,11 @@ services:
     networks:
       - default
       - nginx-net
+    deploy:
+      resources:
+        limits:
+          memory: 4000M
+          cpus: "4.0"
 
   gnpslibrary-omniscidb:
     build:
@@ -69,7 +82,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 24000M
+          memory: 1000M
           cpus: "4.0"
 
   gnpslibrary-rabbitmq:
@@ -85,7 +98,6 @@ services:
     restart: on-failure
     networks:
       - default
-
 
 networks:
   nginx-net:
