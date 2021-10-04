@@ -219,13 +219,27 @@ def draw_output(usi1):
         css=[{'selector': '.row', 'rule': 'margin: 0'}],
         style_table={
             'overflowX': 'auto'
-        }
+        },
+        style_cell={
+            'overflow': 'hidden',
+            'textOverflow': 'ellipsis',
+            'maxWidth': 0,
+        },
+        tooltip_delay=0,
+        tooltip_duration=None,
+        tooltip_data=[
+            {
+                column: {'value': str(value), 'type': 'markdown'}
+                for column, value in row.items()
+            } for row in results_list
+        ],
     )
 
     return [table_obj]
 
 @app.callback([
         Output('datatable', 'data'),
+        Output('datatable', 'tooltip_data'),
         Output('datatable', 'page_count'),
         Output('query_summary', 'children')
     ],
@@ -251,7 +265,15 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
 
     page_count = math.ceil(results_count / page_size)
 
-    return [results_list, page_count, "Total Results {}".format(results_count)]
+    # Adding tool tips
+    tooltip_data = [
+        {
+            column: {'value': str(value), 'type': 'markdown'}
+            for column, value in row.items()
+        } for row in results_list
+    ]
+
+    return [results_list, tooltip_data, page_count, "Total Results {}".format(results_count)]
 
 
 @app.callback([
