@@ -209,12 +209,16 @@ def draw_output(usi1):
         style_data_conditional=[
             {
                 'if': {'row_index': 'odd'},
-                'backgroundColor': 'rgb(248, 248, 248)'
+                'backgroundColor': 'rgb(248, 248, 248)',
             }
         ],
         style_header={
             'backgroundColor': 'rgb(230, 230, 230)',
             'fontWeight': 'bold'
+        },
+        css=[{'selector': '.row', 'rule': 'margin: 0'}],
+        style_table={
+            'overflowX': 'auto'
         }
     )
 
