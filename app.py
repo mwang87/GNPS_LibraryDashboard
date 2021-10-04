@@ -98,6 +98,7 @@ MIDDLE_DASHBOARD = [
                 type="default",
             ),
             html.Br(),
+            html.Hr(),
             html.Div(id="plots")
         ]
     )
@@ -198,7 +199,23 @@ def draw_output(usi1):
         page_size=PAGE_SIZE,
         sort_action="custom",
         page_action='custom',
-        filter_action='custom'
+        filter_action='custom',
+        style_cell_conditional=[
+            {
+                'if': {'column_id': c},
+                'textAlign': 'left'
+            } for c in results_list[0]
+        ],
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': 'rgb(248, 248, 248)'
+            }
+        ],
+        style_header={
+            'backgroundColor': 'rgb(230, 230, 230)',
+            'fontWeight': 'bold'
+        }
     )
 
     return [table_obj]
@@ -256,8 +273,22 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
     except:
         pass
         #return [[], 0, "Query Error"]
+        
+    
+    library_count_result = tasks.query_library_counts.delay()
+    library_count_result = library_count_result.get()
 
-    return [["Plots Here"]]
+    table_obj = dash_table.DataTable(
+        columns=[
+            {"name": i, "id": i} for i in library_count_result[0]
+        ],
+        page_current=0,
+        page_size=PAGE_SIZE,
+        data=library_count_result,
+    )
+    
+
+    return [["Library Sizes", html.Br(), table_obj]]
 
 # API
 @server.route("/api")

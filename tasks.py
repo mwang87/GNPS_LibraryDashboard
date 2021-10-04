@@ -109,6 +109,15 @@ def task_query_data(parameters):
     return results_df.to_dict(orient="records"), results_count
 
 @celery_instance.task(time_limit=30)
+def query_library_counts():
+    con = get_connection()
+
+    table_name = "gnpslibrary"
+    histogram_df = pd.read_sql("SELECT library_membership, count(*) FROM {} GROUP BY library_membership".format(table_name), con)
+
+    return histogram_df.to_dict(orient="records")
+
+@celery_instance.task(time_limit=30)
 def query_histogram(usi, parameters):
     table_name = get_table_name(usi)
 
@@ -152,6 +161,7 @@ def query_histogram(usi, parameters):
 celery_instance.conf.task_routes = {
     'tasks.task_computeheartbeat': {'queue': 'worker'},
     'tasks.task_query_data': {'queue': 'worker'},
+    'tasks.query_library_counts': {'queue': 'worker'},
     'tasks.task_library_download': {'queue': 'workerload'},
 }
 
