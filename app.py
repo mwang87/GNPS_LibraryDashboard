@@ -66,11 +66,11 @@ DATASELECTION_CARD = [
     dbc.CardHeader(html.H5("Data Selection")),
     dbc.CardBody(
         [   
-            html.H5(children='GNPS Data Selection'),
+            html.H5(children='Filters'),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupAddon("Table USI", addon_type="prepend"),
-                    dbc.Input(id='usi1', placeholder="Table USI", value=""),
+                    dbc.InputGroupAddon("Peak Histogram Min intensity norm (out of 1.0)", addon_type="prepend"),
+                    dbc.Input(id='intensitynormmin', placeholder="intensitynormmin", value="0.0"),
                 ],
                 className="mb-3",
             ),
@@ -102,6 +102,12 @@ MIDDLE_DASHBOARD = [
             dcc.Loading(
                 id="plots",
                 children=[html.Div([html.Div(id="loading-output-24")])],
+                type="default",
+            ),
+            html.Hr(),
+            dcc.Loading(
+                id="spectrumrendering",
+                children=[html.Div([html.Div(id="loading-output-25")])],
                 type="default",
             ),
         ]
@@ -165,20 +171,20 @@ app.layout = html.Div(children=[NAVBAR, BODY])
 def _get_url_param(param_dict, key, default):
     return param_dict.get(key, [default])[0]
 
-@app.callback([
-                Output('usi1', 'value'),
-              ],
-              [Input('url', 'search')])
-def determine_task(search):
+# @app.callback([
+#                 Output('usi1', 'value'),
+#               ],
+#               [Input('url', 'search')])
+# def determine_task(search):
     
-    try:
-        query_dict = urllib.parse.parse_qs(search[1:])
-    except:
-        query_dict = {}
+#     try:
+#         query_dict = urllib.parse.parse_qs(search[1:])
+#     except:
+#         query_dict = {}
 
-    usi1 = _get_url_param(query_dict, "usi1", 'mzspec:GNPS:TASK-689f06f4bc2b4799828c63eef1dc522a-query_results/msql/merged_query_results.tsv')
+#     usi1 = _get_url_param(query_dict, "usi1", 'mzspec:GNPS:TASK-689f06f4bc2b4799828c63eef1dc522a-query_results/msql/merged_query_results.tsv')
 
-    return [usi1]
+#     return [usi1]
 
 
 import sys
@@ -188,9 +194,9 @@ PAGE_SIZE = 20
                 Output('output', 'children')
               ],
               [
-                  Input('usi1', 'value'),
+                  Input('url', 'search'),
             ])
-def draw_output(usi1):
+def draw_output(search):
     result = tasks.task_query_data.delay({})
     results_list, results_count = result.get()
 
@@ -204,6 +210,7 @@ def draw_output(usi1):
         sort_action="custom",
         page_action='custom',
         filter_action='custom',
+        row_selectable='single',
         style_cell_conditional=[
             {
                 'if': {'column_id': c},
@@ -248,13 +255,12 @@ def draw_output(usi1):
         Output('query_summary', 'children')
     ],
     [
-        Input('usi1', 'value'),
         Input('datatable', "page_current"),
         Input('datatable', "page_size"),
         Input('datatable', 'sort_by'),
         Input('datatable', "filter_query")
     ])
-def update_table(usi1, page_current, page_size, sort_by, filter):
+def update_table(page_current, page_size, sort_by, filter):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
@@ -284,13 +290,13 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
         Output('plots', 'children')
     ],
     [
-        Input('usi1', 'value'),
         Input('datatable', "page_current"),
         Input('datatable', "page_size"),
         Input('datatable', 'sort_by'),
-        Input('datatable', "filter_query")
+        Input('datatable', "filter_query"),
+        Input('intensitynormmin', 'value')
     ])
-def update_table(usi1, page_current, page_size, sort_by, filter):
+def update_table(page_current, page_size, sort_by, filter, intensitynormmin):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
@@ -315,15 +321,51 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
     library_count_fig = px.bar(library_count_df, y='library_membership', x='numberspectra', log_x=True, orientation="h", height=800)
 
     # Creating histogram by m/z
-    result = tasks.plot_peak_histogram.delay(query_parameters)
+    result = tasks.plot_peak_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
     result = result.get()
 
     histogram_df = pd.DataFrame(result)
     histogram_fig = px.bar(x=histogram_df["mz"], y=histogram_df["counts"], labels={'x': "mz", 'y':'count'})
     histogram_fig.update_layout(bargap=0)
-
+    histogram_fig.update_traces(marker=dict(line=dict(width=0)))
 
     return [["Library Sizes", html.Br(), html.Br(), dcc.Graph(figure=library_count_fig), html.Br(), dcc.Graph(figure=histogram_fig)]]
+
+@app.callback([
+                Output('spectrumrendering', 'children')
+              ],
+              [
+                  Input('datatable', 'derived_virtual_data'),
+                  Input('datatable', 'derived_virtual_selected_rows'),
+              ])
+def draw_spectrum(table_data, table_selected):
+    try:
+        selected_row = table_data[table_selected[0]]
+    except:
+        return ["Choose Match to Show Mirror Plot"]
+
+    selected_usi = "mzspec:GNPS:GNPS-LIBRARY:accession:" + selected_row["spectrum_id"]
+
+    mirror_plot_params = {
+        'usi1':selected_usi,
+        'width': 10.0,
+        'height': 6.0,
+        # 'mz_min': ,
+        'max_intensity': 150.0,
+        'grid': 'true',
+        # 'annotate_peaks': '[[114.0924,412.3234],[114.0919,171.1169,412.3233]]',
+        'annotate_precision': 4,
+        'annotation_rotation': 90,
+    }
+
+    url_params = urllib.parse.urlencode(mirror_plot_params)
+
+    usi_url = "https://metabolomics-usi.ucsd.edu/svg"
+    r = requests.get(usi_url, params = mirror_plot_params)
+
+    img_obj = html.Img(src=usi_url + "?" + url_params)
+
+    return [img_obj]
 
 # API
 @server.route("/api")

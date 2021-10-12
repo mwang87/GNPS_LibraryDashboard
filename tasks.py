@@ -199,7 +199,7 @@ import vaex as vx
 import numpy as np
 
 @celery_instance.task(time_limit=30)
-def plot_peak_histogram(parameters):
+def plot_peak_histogram(parameters, intensitynormmin=0):
     table_df = vx.open("./temp/" + 'table_*.feather') 
     table_df = _construct_df_selections(table_df, parameters)
     table_df = table_df[["spectrum_id"]]
@@ -207,6 +207,9 @@ def plot_peak_histogram(parameters):
     # Merging the spectra
     peak_df = vx.open("./temp/" + 'peak_*.feather')
     peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
+
+    # Filtering other criteria
+    peak_df = peak_df[peak_df["i_norm"] > float(intensitynormmin)]
 
     minmaxx = peak_df.minmax(["mz"])
 
