@@ -14,9 +14,9 @@ services:
       - default
       - nginx-net
     environment:
-      VIRTUAL_HOST: gnpslibrary.ucsd.edu
+      VIRTUAL_HOST: gnps-library.ucsd.edu
       VIRTUAL_PORT: 6546
-      LETSENCRYPT_HOST: gnpslibrary.ucsd.edu
+      LETSENCRYPT_HOST: gnps-library.ucsd.edu
       LETSENCRYPT_EMAIL: miw023@ucsd.edu
     restart: on-failure
     command: /app/run_server.sh
