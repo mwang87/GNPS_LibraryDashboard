@@ -271,7 +271,7 @@ def update_table(page_current, page_size, sort_by, filter):
         result = tasks.task_query_data.delay(query_parameters)
         results_list, results_count = result.get()
     except:
-        return [[], 0, "Query Error"]
+        return [[], [], 0, "Query Error"]
 
     page_count = math.ceil(results_count / page_size)
 
