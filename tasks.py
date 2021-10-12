@@ -230,6 +230,34 @@ def plot_peak_histogram(parameters, intensitynormmin=0):
 
     return histogram_df.to_dict(orient="records")
 
+@celery_instance.task(time_limit=30)
+def plot_peakloss_histogram(parameters, intensitynormmin=0):
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+    table_df = table_df[["spectrum_id"]]
+
+    # Merging the spectra
+    peak_df = vx.open("./temp/" + 'peak_*.feather')
+    peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
+
+    # Filtering other criteria
+    peak_df = peak_df[peak_df["i_norm"] > float(intensitynormmin)]
+
+    # Calculating the loss values
+    peak_df["nl_mz"] = peak_df["precmz"] - peak_df["mz"]
+
+    minmaxx = peak_df.minmax(["nl_mz"])
+
+    mass_difference = int(minmaxx[0][1] - minmaxx[0][0])
+    
+    xcounts = peak_df.count(binby=[peak_df["nl_mz"]], shape=(mass_difference))    
+
+    histogram_df = pd.DataFrame()
+    histogram_df["counts"] = xcounts
+    histogram_df["nl_mz"] = np.linspace(minmaxx[0][0], minmaxx[0][1], mass_difference)
+
+    return histogram_df.to_dict(orient="records")
+
 
     
 
@@ -246,6 +274,8 @@ celery_instance.conf.task_routes = {
     'tasks.task_query_data': {'queue': 'worker'},
     'tasks.query_library_counts': {'queue': 'worker'},
     'tasks.plot_peak_histogram': {'queue': 'worker'},
+    'tasks.plot_peakloss_histogram': {'queue': 'worker'},
+    
     
     'tasks.task_library_download': {'queue': 'workerload'},
 }
