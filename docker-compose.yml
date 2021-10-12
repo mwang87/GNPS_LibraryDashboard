@@ -24,6 +24,7 @@ services:
       resources:
         limits:
           memory: 2000M
+          cpus: "1.0"
 
   gnpslibrary-worker:
     build:
@@ -45,6 +46,7 @@ services:
       resources:
         limits:
           memory: 1000M
+          cpus: "4.0"
 
   gnpslibrary-loadworker:
     build:
@@ -66,7 +68,7 @@ services:
       resources:
         limits:
           memory: 12000M
-          cpus: "4.0"
+          cpus: "1.0"
 
   gnpslibrary-omniscidb:
     build:
