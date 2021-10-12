@@ -360,10 +360,10 @@ def draw_spectrum(table_data, table_selected):
 
     url_params = urllib.parse.urlencode(mirror_plot_params)
 
-    usi_url = "https://metabolomics-usi.ucsd.edu/svg"
-    r = requests.get(usi_url, params = mirror_plot_params)
+    usi_url = "https://metabolomics-usi.ucsd.edu/"
 
-    img_obj = html.Img(src=usi_url + "?" + url_params)
+    img_obj = html.Img(src=usi_url + "svg?" + url_params)
+    link_url = html.A(img_obj, href=usi_url + "dashinterface?" + url_params)
 
     return [img_obj]
 
