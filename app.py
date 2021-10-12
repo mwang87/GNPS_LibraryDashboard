@@ -99,7 +99,11 @@ MIDDLE_DASHBOARD = [
             ),
             html.Br(),
             html.Hr(),
-            html.Div(id="plots")
+            dcc.Loading(
+                id="plots",
+                children=[html.Div([html.Div(id="loading-output-24")])],
+                type="default",
+            ),
         ]
     )
 ]
@@ -308,13 +312,18 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
     # Creating library size bar chart
     library_count_df = pd.DataFrame(library_count_result)
     library_count_df["numberspectra"] = library_count_df['EXPR$1']
-    fig = px.bar(library_count_df, y='library_membership', x='numberspectra', log_x=True, orientation="h", height=800)
+    library_count_fig = px.bar(library_count_df, y='library_membership', x='numberspectra', log_x=True, orientation="h", height=800)
 
     # Creating histogram by m/z
+    result = tasks.plot_peak_histogram.delay(query_parameters)
+    result = result.get()
 
-    
+    histogram_df = pd.DataFrame(result)
+    histogram_fig = px.bar(x=histogram_df["mz"], y=histogram_df["counts"], labels={'x': "mz", 'y':'count'})
+    histogram_fig.update_layout(bargap=0)
 
-    return [["Library Sizes", html.Br(), html.Br(), dcc.Graph(figure=fig)]]
+
+    return [["Library Sizes", html.Br(), html.Br(), dcc.Graph(figure=library_count_fig), html.Br(), dcc.Graph(figure=histogram_fig)]]
 
 # API
 @server.route("/api")

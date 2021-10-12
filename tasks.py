@@ -6,6 +6,7 @@ import shutil
 import pandas as pd
 import pyarrow as pa
 import requests
+from utils import load_data_gnps_json
 
 from pyomnisci import connect
 
@@ -115,6 +116,8 @@ def task_library_download():
 
         # Saving Peak Feather
         output_feather = "./temp/" + "peak_{}.feather".format(library_obj["library"])
+        peaks_df = load_data_gnps_json(library_spectra_list)
+        peaks_df.reset_index().to_feather(output_feather, compression="uncompressed")
 
 
 @celery_instance.task(time_limit=30)
@@ -192,6 +195,31 @@ def query_library_counts():
 
     return histogram_df.to_dict(orient="records")
 
+import vaex as vx
+import numpy as np
+
+@celery_instance.task(time_limit=30)
+def plot_peak_histogram(parameters):
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+    table_df = table_df[["spectrum_id"]]
+
+    # Merging the spectra
+    peak_df = vx.open("./temp/" + 'peak_*.feather')
+    peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
+
+    minmaxx = peak_df.minmax(["mz"])
+
+    mass_difference = int(minmaxx[0][1] - minmaxx[0][0])
+    
+    xcounts = peak_df.count(binby=[peak_df["mz"]], shape=(mass_difference))    
+
+    histogram_df = pd.DataFrame()
+    histogram_df["counts"] = xcounts
+    histogram_df["mz"] = np.linspace(minmaxx[0][0], minmaxx[0][1], mass_difference)
+
+    return histogram_df.to_dict(orient="records")
+
 
     
 
@@ -207,6 +235,8 @@ celery_instance.conf.task_routes = {
     'tasks.task_computeheartbeat': {'queue': 'worker'},
     'tasks.task_query_data': {'queue': 'worker'},
     'tasks.query_library_counts': {'queue': 'worker'},
+    'tasks.plot_peak_histogram': {'queue': 'worker'},
+    
     'tasks.task_library_download': {'queue': 'workerload'},
 }
 
