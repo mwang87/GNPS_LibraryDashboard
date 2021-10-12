@@ -110,8 +110,11 @@ def task_library_download():
         con.load_table_arrow(table_name, pa_df)
 
         # Saving Feather
-        output_feather = "./temp/" + "{}.feather".format(library_obj["library"])
+        output_feather = "./temp/" + "table_{}.feather".format(library_obj["library"])
         library_df.reset_index().to_feather(output_feather, compression="uncompressed")
+
+        # Saving Peak Feather
+        output_feather = "./temp/" + "peak_{}.feather".format(library_obj["library"])
 
 
 @celery_instance.task(time_limit=30)
