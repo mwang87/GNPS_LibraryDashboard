@@ -10,7 +10,7 @@ from dash.dependencies import Input, Output, State
 import os
 from zipfile import ZipFile
 import urllib.parse
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 
 import pandas as pd
 import requests
@@ -74,6 +74,17 @@ DATASELECTION_CARD = [
                 ],
                 className="mb-3",
             ),
+            dbc.Row([
+                dbc.Button("Copy Link", block=True, color="info", id="copy_link_button", n_clicks=0),
+            ]), 
+            html.Div(
+                [
+                    dcc.Link(id="query_link", href="#", target="_blank"),
+                ],
+                style={
+                        "display" :"none"
+                }
+            ),
         ]
     )
 ]
@@ -100,14 +111,15 @@ MIDDLE_DASHBOARD = [
             html.Br(),
             html.Hr(),
             dcc.Loading(
-                id="plots",
-                children=[html.Div([html.Div(id="loading-output-24")])],
-                type="default",
-            ),
-            html.Hr(),
-            dcc.Loading(
                 id="spectrumrendering",
                 children=[html.Div([html.Div(id="loading-output-25")])],
+                type="default",
+            ),
+            html.Br(),
+            html.Hr(),
+            dcc.Loading(
+                id="plots",
+                children=[html.Div([html.Div(id="loading-output-24")])],
                 type="default",
             ),
         ]
@@ -171,20 +183,21 @@ app.layout = html.Div(children=[NAVBAR, BODY])
 def _get_url_param(param_dict, key, default):
     return param_dict.get(key, [default])[0]
 
-# @app.callback([
-#                 Output('usi1', 'value'),
-#               ],
-#               [Input('url', 'search')])
-# def determine_task(search):
+@app.callback([
+                Output('datatable', 'filter_query'),
+                Output('intensitynormmin', 'value'),
+              ],
+              [Input('url', 'search')])
+def determine_url_parameters(search):
+    try:
+        query_dict = urllib.parse.parse_qs(search[1:])
+    except:
+        query_dict = {}
+
+    filter_query = _get_url_param(query_dict, "filter_query", dash.no_update)
+    intensitynormmin = _get_url_param(query_dict, "intensitynormmin", dash.no_update)
     
-#     try:
-#         query_dict = urllib.parse.parse_qs(search[1:])
-#     except:
-#         query_dict = {}
-
-#     usi1 = _get_url_param(query_dict, "usi1", 'mzspec:GNPS:TASK-689f06f4bc2b4799828c63eef1dc522a-query_results/msql/merged_query_results.tsv')
-
-#     return [usi1]
+    return [filter_query, intensitynormmin]
 
 
 import sys
@@ -377,6 +390,56 @@ def draw_spectrum(table_data, table_selected):
     link_url = html.A(img_obj, href=usi_url + "dashinterface?" + url_params)
 
     return [img_obj]
+
+@app.callback([
+                Output('query_link', 'href'),
+              ],
+                [
+                    Input('datatable', 'filter_query'),
+                    Input('intensitynormmin', 'value'),
+                ])
+def draw_url(filter_query, intensitynormmin):
+    params = {}
+    params["filter_query"] = filter_query
+    params["intensitynormmin"] = intensitynormmin
+
+    url_params = urllib.parse.urlencode(params)
+
+    return [request.host_url + "/?" + url_params]
+
+
+app.clientside_callback(
+    """
+    function(n_clicks, button_id, text_to_copy) {
+        original_text = "Copy Link"
+        if (n_clicks > 0) {
+            const el = document.createElement('textarea');
+            el.value = text_to_copy;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            setTimeout(function(id_to_update, text_to_update){ 
+                return function(){
+                    document.getElementById(id_to_update).textContent = text_to_update
+                }}(button_id, original_text), 1000);
+            document.getElementById(button_id).textContent = "Copied!"
+            return 'Copied!';
+        } else {
+            return original_text;
+        }
+    }
+    """,
+    Output('copy_link_button', 'children'),
+    [
+        Input('copy_link_button', 'n_clicks'),
+        Input('copy_link_button', 'id'),
+    ],
+    [
+        State('query_link', 'href'),
+    ]
+)
+
 
 # API
 @server.route("/api")
