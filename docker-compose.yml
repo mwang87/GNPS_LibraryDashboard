@@ -45,7 +45,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1000M
+          memory: 2000M
           cpus: "4.0"
 
   gnpslibrary-loadworker:
@@ -67,7 +67,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 12000M
+          memory: 16000M
           cpus: "1.0"
 
   gnpslibrary-omniscidb:

@@ -115,9 +115,16 @@ def task_library_download():
         library_df.reset_index().to_feather(output_feather, compression="uncompressed")
 
         # Saving Peak Feather
-        output_feather = "./temp/" + "peak_{}.feather".format(library_obj["library"])
-        peaks_df = load_data_gnps_json(library_spectra_list)
-        peaks_df.reset_index().to_feather(output_feather, compression="uncompressed")
+        def divide_chunks(l, n):  
+            # looping till length l
+            for i in range(0, len(l), n): 
+                yield l[i:i + n]
+
+        spectra_split = list(divide_chunks(library_spectra_list, 10000))
+        for i, spectra_list in enumerate(spectra_split):
+            output_feather = "./temp/" + "peak_{}_{}.feather".format(library_obj["library"], i)
+            peaks_df = load_data_gnps_json(spectra_list)
+            peaks_df.reset_index().to_feather(output_feather, compression="uncompressed")
 
 
 @celery_instance.task(time_limit=30)
