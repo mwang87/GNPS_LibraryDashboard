@@ -27,3 +27,4 @@ numpy
 gunicorn
 celery==5.0.5
 celery_once==3.0.1
+vaex

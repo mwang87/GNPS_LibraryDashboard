@@ -17,3 +17,7 @@ server-compose:
 
 attach:
 	docker exec -i -t gnpslibrary-dash /bin/bash
+
+clear-cache:
+	sudo rm temp/* || true
+	sudo rm temp/omnisci/data/ -rf || true

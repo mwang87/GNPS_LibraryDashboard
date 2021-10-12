@@ -15,6 +15,49 @@ def get_connection():
 
 celery_instance = Celery('tasks', backend='redis://gnpslibrary-redis', broker='pyamqp://guest@gnpslibrary-rabbitmq//', )
 
+
+def _construct_df_selections(df, parameters):
+    """Applying filtering on the vaex dataframe lazily
+
+    Args:
+        df ([type]): [description]
+        parameters ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+
+    try:
+        filter = parameters.get("filter", "")
+        filtering_expressions = filter.split(' && ')
+
+        for filter_part in filtering_expressions:
+            filter_splits = filter_part.split(" ")
+            column_part = filter_splits[0]
+            operator = filter_splits[1]
+            value_part = filter_splits[2]
+
+            if operator == "contains":
+                # Checking the type of the column
+                truncated_df = df.head().to_pandas_df()
+                if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
+                    df = df[df[column_part[1:-1]].isin([int(value_part)])]
+                else:
+                    df = df[df[column_part[1:-1]].str.contains(value_part)]    
+
+            if operator == ">":
+                # we know its numerical
+                df = df[df[column_part[1:-1]] > float(value_part)]
+
+            if operator == "<":
+                # we know its numerical
+                df = df[df[column_part[1:-1]] < float(value_part)]
+    except:
+        pass
+
+    return df
+
+
 @celery_instance.task(time_limit=60)
 def task_computeheartbeat():
     print("UP", file=sys.stderr, flush=True)
@@ -25,12 +68,28 @@ def task_library_download():
     library_list = requests.get("https://gnps-external.ucsd.edu/gnpslibrary.json").json()
 
     for library_obj in library_list:
+        print("Loading", library_obj)
+
         library_url = "https://gnps-external.ucsd.edu/gnpslibrary/{}.json".format(library_obj["library"])
         library_spectra_list = requests.get(library_url).json()
 
         # Read into pandas without peaks and inject into database
         library_df = pd.DataFrame(library_spectra_list)
-        library_df = library_df[["spectrum_id", "library_membership", "submit_user", "Pubmed_ID", "PI", "Data_Collector", "Ion_Mode", "Precursor_MZ", "Compound_Name"]]
+        library_df = library_df[["spectrum_id", 
+                                 "library_membership", 
+                                 "submit_user", 
+                                 "Pubmed_ID", 
+                                 "PI", 
+                                 "Data_Collector", 
+                                 "Ion_Mode", 
+                                 "Precursor_MZ", 
+                                 "Compound_Name",
+                                 "Instrument",
+                                 "Adduct",
+                                 "Charge",
+                                 "Formula_smiles"]]
+
+        library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 
         # Putting into ominisci
         table_name = "gnpslibrary"
@@ -49,6 +108,10 @@ def task_library_download():
         # Loading data
         pa_df = pa.Table.from_pandas(library_df)
         con.load_table_arrow(table_name, pa_df)
+
+        # Saving Feather
+        output_feather = "./temp/" + "{}.feather".format(library_obj["library"])
+        library_df.reset_index().to_feather(output_feather, compression="uncompressed")
 
 
 @celery_instance.task(time_limit=30)
@@ -77,9 +140,18 @@ def task_query_data(parameters):
             if operator == "contains":
                 where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
 
+            if operator == ">":
+                # we know its numerical
+                where_clauses.append("{} > {}".format(column_part[1:-1], float(value_part)))
+
+            if operator == "<":
+                # we know its numerical
+                where_clauses.append("{} < {}".format(column_part[1:-1], float(value_part)))
+
         if len(where_clauses) > 0:
             sql_query_suffix += " WHERE " + " AND ".join(where_clauses)
             sql_count_suffix += " WHERE " + " AND ".join(where_clauses)
+            
     except:
         pass
 
@@ -116,36 +188,6 @@ def query_library_counts():
     histogram_df = pd.read_sql("SELECT library_membership, count(*) FROM {} GROUP BY library_membership".format(table_name), con)
 
     return histogram_df.to_dict(orient="records")
-
-@celery_instance.task(time_limit=30)
-def query_histogram(usi, parameters):
-    table_name = get_table_name(usi)
-
-    # Making sure the connection is good
-    try:
-        all_tables = con.get_tables()   
-    except:
-        # Probably a bad connection
-        con = get_connection()
-        print("RETRYING CONNECTION")
-
-    # USE THIS INSTEAD
-
-    histogram_query = """SELECT
-        CASE
-            WHEN precmz <= 200 THEN "0-200"
-            WHEN precmz <= 400 THEN "201-400"
-            WHEN precmz <= 500 THEN "401-500"
-            ELSE "501-"
-        END as HISTGROUP,
-        count(*) as count
-    GROUP BY HISTGROUP 
-    ORDER BY HISTGROUP;"""
-    histogram_df = pd.read_sql(histogram_query, con)
-
-    print(histogram_df)
-
-    return ""
 
 
     

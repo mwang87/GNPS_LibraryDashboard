@@ -292,14 +292,6 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
     query_parameters["page_size"] = page_size
     query_parameters["sort_by"] = sort_by
     query_parameters["filter"] = filter
-
-    try:
-        result = tasks.query_histogram.delay(usi1, query_parameters)
-        #results_list, results_count = result.get()
-    except:
-        pass
-        #return [[], 0, "Query Error"]
-        
     
     library_count_result = tasks.query_library_counts.delay()
     library_count_result = library_count_result.get()
@@ -312,9 +304,17 @@ def update_table(usi1, page_current, page_size, sort_by, filter):
         page_size=PAGE_SIZE,
         data=library_count_result,
     )
+
+    # Creating library size bar chart
+    library_count_df = pd.DataFrame(library_count_result)
+    library_count_df["numberspectra"] = library_count_df['EXPR$1']
+    fig = px.bar(library_count_df, y='library_membership', x='numberspectra', log_x=True, orientation="h", height=800)
+
+    # Creating histogram by m/z
+
     
 
-    return [["Library Sizes", html.Br(), table_obj]]
+    return [["Library Sizes", html.Br(), html.Br(), dcc.Graph(figure=fig)]]
 
 # API
 @server.route("/api")
