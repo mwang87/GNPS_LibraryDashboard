@@ -44,7 +44,7 @@ def _construct_df_selections(df, parameters):
                 if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
                     df = df[df[column_part[1:-1]].isin([int(value_part)])]
                 else:
-                    df = df[df[column_part[1:-1]].str.contains(value_part)]    
+                    df = df[df[column_part[1:-1]].str.contains(value_part, case=False)]
 
             if operator == ">":
                 # we know its numerical
@@ -151,7 +151,9 @@ def task_query_data(parameters):
             value_part = filter_splits[2]
 
             if operator == "contains":
-                where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
+                #where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
+                where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
+
 
             if operator == ">":
                 # we know its numerical
@@ -205,7 +207,7 @@ def query_library_counts():
 import vaex as vx
 import numpy as np
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def plot_peak_histogram(parameters, intensitynormmin=0):
     table_df = vx.open("./temp/" + 'table_*.feather') 
     table_df = _construct_df_selections(table_df, parameters)
@@ -230,7 +232,7 @@ def plot_peak_histogram(parameters, intensitynormmin=0):
 
     return histogram_df.to_dict(orient="records")
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def plot_peakloss_histogram(parameters, intensitynormmin=0):
     table_df = vx.open("./temp/" + 'table_*.feather') 
     table_df = _construct_df_selections(table_df, parameters)
@@ -259,6 +261,30 @@ def plot_peakloss_histogram(parameters, intensitynormmin=0):
     return histogram_df.to_dict(orient="records")
 
 
+@celery_instance.task(time_limit=60)
+def plot_peak_heatmap(parameters):
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+    table_df = table_df[["spectrum_id"]]
+
+    # Merging the spectra
+    peak_df = vx.open("./temp/" + 'peak_*.feather')
+    peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
+
+    peak_df = peak_df[peak_df["mz"] < 1000]
+
+    # All scan values
+    scan_values = peak_df["scan"].unique()
+    scan_to_int_mapping_df = pd.DataFrame()
+    scan_to_int_mapping_df["scan"] = scan_values
+    scan_to_int_mapping_df["spectrum"] = scan_to_int_mapping_df.index
+    scan_to_int_mapping_df = vx.from_pandas(scan_to_int_mapping_df)
+
+    peak_df = peak_df.join(scan_to_int_mapping_df, left_on='scan', right_on='scan', how='inner')
+
+    aggregation = peak_df.sum("i_norm", binby=[peak_df["spectrum"], peak_df["mz"]], shape=(128, 128), array_type="xarray")
+
+    return aggregation.to_dict()
     
 
 # celery_instance.conf.beat_schedule = {
@@ -275,6 +301,7 @@ celery_instance.conf.task_routes = {
     'tasks.query_library_counts': {'queue': 'worker'},
     'tasks.plot_peak_histogram': {'queue': 'worker'},
     'tasks.plot_peakloss_histogram': {'queue': 'worker'},
+    'tasks.plot_peak_heatmap': {'queue': 'worker'},
     
     
     'tasks.task_library_download': {'queue': 'workerload'},

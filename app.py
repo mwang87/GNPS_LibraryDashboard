@@ -298,6 +298,7 @@ def update_table(page_current, page_size, sort_by, filter):
 
     return [results_list, tooltip_data, page_count, "Total Results {}".format(results_count)]
 
+import xarray as xr
 
 @app.callback([
         Output('plots', 'children')
@@ -342,18 +343,25 @@ def update_table(page_current, page_size, sort_by, filter, intensitynormmin):
     histogram_fig.update_layout(bargap=0)
     histogram_fig.update_traces(marker=dict(line=dict(width=0)))
 
-    # Creating histogram by neutral loss
-    result = tasks.plot_peakloss_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
+    # Creating histogram m/z
+    result = tasks.plot_peak_heatmap.delay(query_parameters)
     result = result.get()
-    histogram_loss_df = pd.DataFrame(result)
-    histogram_loss_fig = px.bar(x=histogram_loss_df["nl_mz"], y=histogram_loss_df["counts"], labels={'x': "nl_mz", 'y':'count'}, title="Neutral Loss Peak Histogram")
-    histogram_loss_fig.update_layout(bargap=0)
-    histogram_loss_fig.update_traces(marker=dict(line=dict(width=0)))
+    aggregation = xr.DataArray.from_dict(result)
+    heatmap_fig = px.imshow(aggregation, origin='lower', labels={'color':'peak intensity'}, height=600)
+
+    # Creating histogram by neutral loss
+    # result = tasks.plot_peakloss_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
+    # result = result.get()
+    # histogram_loss_df = pd.DataFrame(result)
+    # histogram_loss_fig = px.bar(x=histogram_loss_df["nl_mz"], y=histogram_loss_df["counts"], labels={'x': "nl_mz", 'y':'count'}, title="Neutral Loss Peak Histogram")
+    # histogram_loss_fig.update_layout(bargap=0)
+    # histogram_loss_fig.update_traces(marker=dict(line=dict(width=0)))
+    # dcc.Graph(figure=histogram_loss_fig)
 
     return [["Library Sizes", html.Br(), html.Br(), 
                 dcc.Graph(figure=library_count_fig), html.Br(), 
                 dcc.Graph(figure=histogram_fig), html.Br(), 
-                dcc.Graph(figure=histogram_loss_fig)]]
+                dcc.Graph(figure=heatmap_fig)]]
 
 @app.callback([
                 Output('spectrumrendering', 'children')
