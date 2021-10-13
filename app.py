@@ -34,7 +34,7 @@ import tasks
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
-app.title = 'GNPS - Template'
+app.title = 'GNPS - Library Explorer'
 
 cache = Cache(app.server, config={
     'CACHE_TYPE': 'filesystem',

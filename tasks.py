@@ -44,7 +44,7 @@ def _construct_df_selections(df, parameters):
                 if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
                     df = df[df[column_part[1:-1]].isin([int(value_part)])]
                 else:
-                    df = df[df[column_part[1:-1]].str.contains(value_part)]
+                    df = df[df[column_part[1:-1]].str.contains(value_part.lower())]
 
             if operator == ">":
                 # we know its numerical
@@ -110,6 +110,11 @@ def task_library_download():
         pa_df = pa.Table.from_pandas(library_df)
         con.load_table_arrow(table_name, pa_df)
 
+        # Creating lower cases for certain columns
+        to_lower_columns = ["library_membership", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Adduct", "Formula_smiles", "Compound_Name"]
+        for column in to_lower_columns:
+            library_df[column] = library_df[column].str.lower()
+
         # Saving Feather
         output_feather = "./temp/" + "table_{}.feather".format(library_obj["library"])
         library_df.reset_index().to_feather(output_feather, compression="uncompressed")
@@ -151,9 +156,9 @@ def task_query_data(parameters):
             value_part = filter_splits[2]
 
             if operator == "contains":
-                where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
+                #where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
                 # Case insensitive
-                #where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
+                where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
 
 
             if operator == ">":
