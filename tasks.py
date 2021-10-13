@@ -44,7 +44,7 @@ def _construct_df_selections(df, parameters):
                 if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
                     df = df[df[column_part[1:-1]].isin([int(value_part)])]
                 else:
-                    df = df[df[column_part[1:-1]].str.contains(value_part, case=False)]
+                    df = df[df[column_part[1:-1]].str.contains(value_part)]
 
             if operator == ">":
                 # we know its numerical
@@ -151,8 +151,9 @@ def task_query_data(parameters):
             value_part = filter_splits[2]
 
             if operator == "contains":
-                #where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
-                where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
+                where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
+                # Case insensitive
+                #where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
 
 
             if operator == ">":
