@@ -374,7 +374,7 @@ def draw_spectrum(table_data, table_selected):
     try:
         selected_row = table_data[table_selected[0]]
     except:
-        return ["Choose Match to Show Mirror Plot"]
+        return ["Choose Library Spectrum to Show Spectra"]
 
     selected_usi = "mzspec:GNPS:GNPS-LIBRARY:accession:" + selected_row["spectrum_id"]
 
@@ -395,9 +395,10 @@ def draw_spectrum(table_data, table_selected):
     usi_url = "https://metabolomics-usi.ucsd.edu/"
 
     img_obj = html.Img(src=usi_url + "svg?" + url_params)
-    link_url = html.A(img_obj, href=usi_url + "dashinterface?" + url_params)
+    img_link_url = html.A(img_obj, href=usi_url + "dashinterface?" + url_params, target="_blank")
+    usi_link_url = html.A(selected_usi, href=usi_url + "dashinterface?" + url_params, target="_blank")
 
-    return [img_obj]
+    return [[usi_link_url, html.Br(), img_link_url]]
 
 @app.callback([
                 Output('query_link', 'href'),
