@@ -30,8 +30,6 @@ import werkzeug
 from flask_caching import Cache
 import tasks
 
-
-
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = 'GNPS - Library Explorer'
@@ -76,6 +74,8 @@ DATASELECTION_CARD = [
             ),
             dbc.Row([
                 dbc.Button("Copy Link", block=True, color="info", id="copy_link_button", n_clicks=0),
+                dbc.Button("Download", block=True, color="info", id="download_button", n_clicks=0),
+                dcc.Download(id="download-filtered-data"),
             ]), 
             html.Div(
                 [
@@ -399,6 +399,34 @@ def draw_spectrum(table_data, table_selected):
     usi_link_url = html.A(selected_usi, href=usi_url + "dashinterface?" + url_params, target="_blank")
 
     return [[usi_link_url, html.Br(), img_link_url]]
+
+@app.callback(
+    [
+        Output("download-filtered-data", "data"),
+    ],
+    [   
+        Input("download_button", "n_clicks"),
+        Input('datatable', 'sort_by'),
+        Input('datatable', "filter_query")
+    ],
+    prevent_initial_call=True,
+)
+def download_data(n_clicks, sort_by, filter_query):
+    query_parameters = {}
+    query_parameters["page_current"] = 0
+    query_parameters["page_size"] = 100000
+    query_parameters["sort_by"] = sort_by
+    query_parameters["filter"] = filter_query
+
+    try:
+        result = tasks.task_query_data.delay(query_parameters)
+        results_list, results_count = result.get()
+    except:
+        raise
+
+    df = pd.DataFrame(results_list)
+
+    return [dcc.send_data_frame(df.to_csv, "filtered_library.csv")]
 
 @app.callback([
                 Output('query_link', 'href'),
