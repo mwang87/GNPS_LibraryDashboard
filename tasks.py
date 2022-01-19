@@ -88,7 +88,7 @@ def task_library_download():
                                  "Instrument",
                                  "Adduct",
                                  "Charge",
-                                 "Formula_smiles"]]
+                                 "InChIKey_smiles", "InChIKey_inchi", "Formula_smiles", "Formula_inchi"]]
 
         library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 
@@ -111,7 +111,7 @@ def task_library_download():
         con.load_table_arrow(table_name, pa_df)
 
         # Creating lower cases for certain columns
-        to_lower_columns = ["library_membership", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Adduct", "Formula_smiles", "Compound_Name"]
+        to_lower_columns = ["library_membership", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Compound_Name"]
         for column in to_lower_columns:
             library_df[column] = library_df[column].str.lower()
 
@@ -155,7 +155,7 @@ def task_query_data(parameters):
             operator = filter_splits[1]
             value_part = filter_splits[2]
 
-            if operator == "contains":
+            if operator == "contains" or operator == "scontains":
                 #where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
                 # Case insensitive
                 where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
