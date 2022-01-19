@@ -38,7 +38,7 @@ def _construct_df_selections(df, parameters):
             operator = filter_splits[1]
             value_part = filter_splits[2]
 
-            if operator == "contains":
+            if operator == "contains" or operator == "scontains":
                 # Checking the type of the column
                 truncated_df = df.head().to_pandas_df()
                 if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
@@ -201,6 +201,16 @@ def task_query_data(parameters):
 
     return results_df.to_dict(orient="records"), results_count
 
+
+@celery_instance.task(time_limit=120)
+def task_query_bigdata(parameters):
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+
+    table_df = table_df.to_pandas_df()
+
+    return table_df.to_dict(orient="records"), len(table_df)
+
 @celery_instance.task(time_limit=30)
 def query_library_counts():
     con = get_connection()
@@ -304,6 +314,7 @@ def plot_peak_heatmap(parameters):
 celery_instance.conf.task_routes = {
     'tasks.task_computeheartbeat': {'queue': 'worker'},
     'tasks.task_query_data': {'queue': 'worker'},
+    'tasks.task_query_bigdata': {'queue': 'worker'},
     'tasks.query_library_counts': {'queue': 'worker'},
     'tasks.plot_peak_histogram': {'queue': 'worker'},
     'tasks.plot_peakloss_histogram': {'queue': 'worker'},
