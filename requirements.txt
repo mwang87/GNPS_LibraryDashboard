@@ -25,3 +25,4 @@ gunicorn
 celery==5.0.5
 celery_once==3.0.1
 vaex==4.7.0
+blake3==0.2.1
