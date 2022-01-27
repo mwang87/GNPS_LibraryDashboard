@@ -68,7 +68,7 @@ DATASELECTION_CARD = [
             dbc.InputGroup(
                 [
                     dbc.InputGroupAddon("Peak Histogram Min intensity norm (out of 1.0)", addon_type="prepend"),
-                    dbc.Input(id='intensitynormmin', placeholder="intensitynormmin", value="0.0"),
+                    dbc.Input(id='intensitynormmin', placeholder="intensitynormmin", value="0.05"),
                 ],
                 className="mb-3",
             ),
@@ -333,10 +333,15 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
         data=library_count_result,
     )
 
+    output_figure_list = ["Library Sizes", html.Br(), html.Br()]
+
     # Creating library size bar chart
     library_count_df = pd.DataFrame(library_count_result)
     library_count_df["numberspectra"] = library_count_df['EXPR$1']
     library_count_fig = px.bar(library_count_df, y='library_membership', x='numberspectra', log_x=True, orientation="h", height=800)
+
+    output_figure_list.append(dcc.Graph(figure=library_count_fig))
+    output_figure_list.append(html.Br())
 
     # Creating histogram by m/z
     result = tasks.plot_peak_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
@@ -347,11 +352,26 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     histogram_fig.update_layout(bargap=0)
     histogram_fig.update_traces(marker=dict(line=dict(width=0)))
 
+    output_figure_list.append(dcc.Graph(figure=histogram_fig))
+    output_figure_list.append(html.Br())
+
     # Creating histogram m/z
     result = tasks.plot_peak_heatmap.delay(query_parameters)
     result = result.get()
     aggregation = xr.DataArray.from_dict(result)
     heatmap_fig = px.imshow(aggregation, origin='lower', labels={'color':'peak intensity'}, height=600)
+
+    output_figure_list.append(dcc.Graph(figure=heatmap_fig))
+    output_figure_list.append(html.Br())
+
+    # Creating box plots
+    result = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin)
+    box_plot_figure = result.get()
+
+    if box_plot_figure is not None:
+        output_figure_list.append(dcc.Graph(figure=box_plot_figure))
+        output_figure_list.append(html.Br())
+
 
     # Creating histogram by neutral loss
     # result = tasks.plot_peakloss_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
@@ -362,10 +382,7 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     # histogram_loss_fig.update_traces(marker=dict(line=dict(width=0)))
     # dcc.Graph(figure=histogram_loss_fig)
 
-    return [["Library Sizes", html.Br(), html.Br(), 
-                dcc.Graph(figure=library_count_fig), html.Br(), 
-                dcc.Graph(figure=histogram_fig), html.Br(), 
-                dcc.Graph(figure=heatmap_fig)]]
+    return [output_figure_list]
 
 @app.callback([
                 Output('spectrumrendering', 'children')
