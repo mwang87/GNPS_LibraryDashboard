@@ -38,7 +38,7 @@ def _construct_df_selections(df, parameters):
             operator = filter_splits[1]
             value_part = filter_splits[2]
 
-            if operator == "contains":
+            if operator == "contains" or operator == "scontains":
                 # Checking the type of the column
                 truncated_df = df.head().to_pandas_df()
                 if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
@@ -88,7 +88,7 @@ def task_library_download():
                                  "Instrument",
                                  "Adduct",
                                  "Charge",
-                                 "Formula_smiles"]]
+                                 "InChIKey_smiles", "InChIKey_inchi", "Formula_smiles", "Formula_inchi"]]
 
         library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
 
@@ -111,7 +111,7 @@ def task_library_download():
         con.load_table_arrow(table_name, pa_df)
 
         # Creating lower cases for certain columns
-        to_lower_columns = ["library_membership", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Adduct", "Formula_smiles", "Compound_Name"]
+        to_lower_columns = ["library_membership", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Compound_Name"]
         for column in to_lower_columns:
             library_df[column] = library_df[column].str.lower()
 
@@ -155,7 +155,7 @@ def task_query_data(parameters):
             operator = filter_splits[1]
             value_part = filter_splits[2]
 
-            if operator == "contains":
+            if operator == "contains" or operator == "scontains":
                 #where_clauses.append("{} LIKE '%{}%'".format(column_part[1:-1], value_part))
                 # Case insensitive
                 where_clauses.append("{} ILIKE '%{}%'".format(column_part[1:-1], value_part))
@@ -200,6 +200,16 @@ def task_query_data(parameters):
     results_count = int(results_count_df.iloc[0][0])
 
     return results_df.to_dict(orient="records"), results_count
+
+
+@celery_instance.task(time_limit=120)
+def task_query_bigdata(parameters):
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+
+    table_df = table_df.to_pandas_df()
+
+    return table_df.to_dict(orient="records"), len(table_df)
 
 @celery_instance.task(time_limit=30)
 def query_library_counts():
@@ -304,6 +314,7 @@ def plot_peak_heatmap(parameters):
 celery_instance.conf.task_routes = {
     'tasks.task_computeheartbeat': {'queue': 'worker'},
     'tasks.task_query_data': {'queue': 'worker'},
+    'tasks.task_query_bigdata': {'queue': 'worker'},
     'tasks.query_library_counts': {'queue': 'worker'},
     'tasks.plot_peak_histogram': {'queue': 'worker'},
     'tasks.plot_peakloss_histogram': {'queue': 'worker'},

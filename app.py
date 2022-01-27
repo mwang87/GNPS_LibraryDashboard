@@ -74,7 +74,7 @@ DATASELECTION_CARD = [
             ),
             dbc.Row([
                 dbc.Button("Copy Link", block=True, color="info", id="copy_link_button", n_clicks=0),
-                dbc.Button("Download", block=True, color="info", id="download_button", n_clicks=0),
+                dbc.Button("Download Filtered Table", block=True, color="info", id="download_button", n_clicks=0),
                 dcc.Download(id="download-filtered-data"),
             ]), 
             html.Div(
@@ -116,6 +116,7 @@ MIDDLE_DASHBOARD = [
                 type="default",
             ),
             html.Br(),
+            dbc.Button("Update Histograms", block=True, color="info", id="histogram_button", n_clicks=0),
             html.Hr(),
             dcc.Loading(
                 id="plots",
@@ -304,13 +305,16 @@ import xarray as xr
         Output('plots', 'children')
     ],
     [
-        Input('datatable', "page_current"),
-        Input('datatable', "page_size"),
-        Input('datatable', 'sort_by'),
-        Input('datatable', "filter_query"),
-        Input('intensitynormmin', 'value')
+        Input('histogram_button', "n_clicks"),
+    ],
+    [
+        State('datatable', "page_current"),
+        State('datatable', "page_size"),
+        State('datatable', 'sort_by'),
+        State('datatable', "filter_query"),
+        State('intensitynormmin', 'value')
     ])
-def update_table(page_current, page_size, sort_by, filter, intensitynormmin):
+def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
@@ -406,20 +410,22 @@ def draw_spectrum(table_data, table_selected):
     ],
     [   
         Input("download_button", "n_clicks"),
-        Input('datatable', 'sort_by'),
-        Input('datatable', "filter_query")
+    ],
+    [
+        State('datatable', 'sort_by'),
+        State('datatable', "filter_query")
     ],
     prevent_initial_call=True,
 )
 def download_data(n_clicks, sort_by, filter_query):
     query_parameters = {}
     query_parameters["page_current"] = 0
-    query_parameters["page_size"] = 100000
+    query_parameters["page_size"] = 1000000
     query_parameters["sort_by"] = sort_by
     query_parameters["filter"] = filter_query
 
     try:
-        result = tasks.task_query_data.delay(query_parameters)
+        result = tasks.task_query_bigdata.delay(query_parameters)
         results_list, results_count = result.get()
     except:
         raise
