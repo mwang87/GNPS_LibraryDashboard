@@ -5,6 +5,7 @@ import sys
 import shutil
 import pandas as pd
 import pyarrow as pa
+import plotly.express as px
 import requests
 from utils import load_data_gnps_json
 
@@ -16,6 +17,11 @@ def get_connection():
 
 celery_instance = Celery('tasks', backend='redis://gnpslibrary-redis', broker='pyamqp://guest@gnpslibrary-rabbitmq//', )
 
+celery_instance.conf.update(
+    task_serializer="pickle",
+    result_serializer="pickle",
+    accept_content=["pickle", "json"],
+)
 
 def _construct_df_selections(df, parameters):
     """Applying filtering on the vaex dataframe lazily
@@ -57,6 +63,64 @@ def _construct_df_selections(df, parameters):
         pass
 
     return df
+
+
+# Here we will read the feather data and plot a box plot to understand variability
+@celery_instance.task(time_limit=60)
+def plot_peak_boxplots(parameters, intensitynormmin=0):
+    
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+    table_df = table_df[["spectrum_id"]]
+    
+    # Merging the spectra
+    peak_df = vx.open("./temp/" + 'peak_*.feather')
+    peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
+    
+    if len(peak_df) > 10000000:
+        return None
+    
+    # Make vaex dataframe into pandas dataframe
+    peak_df = peak_df.to_pandas_df()
+    
+    # Binning MZ values
+    peak_df['mz_binned'] = peak_df['mz'].astype('int')
+    unique_mz_binned = peak_df['mz_binned'].unique()
+
+    # Calculating ratio of scans that DO NOT have a value at mz_binned
+    no_peak_ratio = {}
+
+    for peak in unique_mz_binned:
+        mz_df = peak_df[peak_df["mz_binned"] == peak]
+        all_peaks = mz_df['i_norm'].values
+
+        above = sum(i >= float(intensitynormmin) for i in all_peaks)
+        below = sum(i < float(intensitynormmin) for i in all_peaks)
+
+        total_scans = len(mz_df)
+
+        no_peak_ratio[peak] = below/total_scans
+
+    # Make dataframe from above calculations
+    no_peak_ratio_df = pd.DataFrame.from_dict(no_peak_ratio, orient='index')
+    no_peak_ratio_df.index.name = 'mz_binned'
+    no_peak_ratio_df = no_peak_ratio_df.rename(columns={0: "ratio of missing peaks"})
+
+    # Filter original peak_df
+    filtered_peak_df = peak_df[peak_df["i_norm"] > float(intensitynormmin)]
+
+    ax = px.box(filtered_peak_df, x='mz_binned',y='i_norm', points=False)
+    ax.add_bar(x=no_peak_ratio_df.index, y=-no_peak_ratio_df["ratio of missing peaks"], name = "ratio of spectra with missing peaks")
+    
+    return ax
+
+    # Plotting: shows how many spectra have a peak at a certain mz_binned and what ratio of spectra with missing peaks
+    #with open('output_box_peak_df.html', 'w') as f:
+        
+
+        #f.write(ax.to_html(full_html=False, include_plotlyjs='cdn'))
+    
+    
 
 
 @celery_instance.task(time_limit=60)
@@ -318,6 +382,7 @@ celery_instance.conf.task_routes = {
     'tasks.query_library_counts': {'queue': 'worker'},
     'tasks.plot_peak_histogram': {'queue': 'worker'},
     'tasks.plot_peakloss_histogram': {'queue': 'worker'},
+    'tasks.plot_peak_boxplots': {'queue': 'worker'},
     'tasks.plot_peak_heatmap': {'queue': 'worker'},
     
     
