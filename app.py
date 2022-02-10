@@ -72,6 +72,14 @@ DATASELECTION_CARD = [
                 ],
                 className="mb-3",
             ),
+            html.Br(),
+            dbc.InputGroup(
+                [
+                    dbc.InputGroupAddon("Peak Percent (out of 100)", addon_type="prepend"),
+                    dbc.Input(id='percentoccurmin', placeholder="percentoccurmin", value="20"),
+                ],
+                className="mb-3",
+            ),
             dbc.Row([
                 dbc.Button("Copy Link", block=True, color="info", id="copy_link_button", n_clicks=0),
                 dbc.Button("Download Filtered Table", block=True, color="info", id="download_button", n_clicks=0),
@@ -312,9 +320,10 @@ import xarray as xr
         State('datatable', "page_size"),
         State('datatable', 'sort_by'),
         State('datatable', "filter_query"),
-        State('intensitynormmin', 'value')
+        State('intensitynormmin', 'value'),
+        State('percentoccurmin', 'value'),
     ])
-def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin):
+def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
@@ -335,6 +344,11 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
 
     output_figure_list = ["Library Sizes", html.Br(), html.Br()]
 
+    # Launching all the compute tasks
+    histogram_result = tasks.plot_peak_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
+    plot_peak_heatmap_result = tasks.plot_peak_heatmap.delay(query_parameters)
+    box_plot_figure = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin)
+
     # Creating library size bar chart
     library_count_df = pd.DataFrame(library_count_result)
     library_count_df["numberspectra"] = library_count_df['EXPR$1']
@@ -344,10 +358,9 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     output_figure_list.append(html.Br())
 
     # Creating histogram by m/z
-    result = tasks.plot_peak_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
-    result = result.get()
+    histogram_result = histogram_result.get()
 
-    histogram_df = pd.DataFrame(result)
+    histogram_df = pd.DataFrame(histogram_result)
     histogram_fig = px.bar(x=histogram_df["mz"], y=histogram_df["counts"], labels={'x': "mz", 'y':'count'}, title="Peak Histogram")
     histogram_fig.update_layout(bargap=0)
     histogram_fig.update_traces(marker=dict(line=dict(width=0)))
@@ -356,17 +369,15 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     output_figure_list.append(html.Br())
 
     # Creating histogram m/z
-    result = tasks.plot_peak_heatmap.delay(query_parameters)
-    result = result.get()
-    aggregation = xr.DataArray.from_dict(result)
+    plot_peak_heatmap_result = plot_peak_heatmap_result.get()
+    aggregation = xr.DataArray.from_dict(plot_peak_heatmap_result)
     heatmap_fig = px.imshow(aggregation, origin='lower', labels={'color':'peak intensity'}, height=600)
 
     output_figure_list.append(dcc.Graph(figure=heatmap_fig))
     output_figure_list.append(html.Br())
 
     # Creating box plots
-    result = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin)
-    box_plot_figure = result.get()
+    box_plot_figure = box_plot_figure.get()
 
     if box_plot_figure is not None:
         output_figure_list.append(dcc.Graph(figure=box_plot_figure))
