@@ -123,6 +123,63 @@ def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20):
     
     return ax
 
+
+@celery_instance.task(time_limit=60)
+def plot_peakloss_boxplots(parameters, intensitynormmin=0, percentoccurmin=20):
+    
+    table_df = vx.open("./temp/" + 'table_*.feather') 
+    table_df = _construct_df_selections(table_df, parameters)
+    table_df = table_df[["spectrum_id"]]
+    
+    # Merging the spectra
+    peak_df = vx.open("./temp/" + 'peak_*.feather')
+    peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
+    
+    if len(peak_df) > 10000000:
+        return None
+    
+    # Make vaex dataframe into pandas dataframe
+    peak_df = peak_df.to_pandas_df()
+    
+    # Binning MZ values
+    peak_df['mz_binned'] = peak_df['mz'].astype('int')
+    unique_mz_binned = peak_df['mz_binned'].unique()
+
+    # Calculating ratio of scans that DO NOT have a value at mz_binned
+    no_peak_ratio = {}
+    contains_peak_ratio = {}
+
+    for peak in unique_mz_binned:
+        mz_df = peak_df[peak_df["mz_binned"] == peak]
+        all_peaks = mz_df['i_norm'].values
+
+        above = sum(i >= float(intensitynormmin) for i in all_peaks)
+        below = sum(i < float(intensitynormmin) for i in all_peaks)
+
+        total_scans = len(mz_df)
+
+        no_peak_ratio[peak] = below/total_scans
+        
+        if above/total_scans >= (float(percentoccurmin)/100):
+            contains_peak_ratio[peak] = above/total_scans
+
+    # Make dataframe from above calculations
+    peak_ratio_df = pd.DataFrame.from_dict(no_peak_ratio, orient='index')
+    peak_ratio_df.index.name = 'mz_binned'
+    peak_ratio_df = peak_ratio_df.rename(columns={0: "ratio of missing peaks"})
+    peak_ratio_df['ratio of present peaks'] = peak_ratio_df.index.map(contains_peak_ratio)
+
+    # Filter original peak_df
+    filtered_peak_df = peak_df[peak_df["i_norm"] > float(intensitynormmin)]
+
+    # Filtering to only include peaks that are present in at least 20% of the scans
+    filtered_peak_df = filtered_peak_df[filtered_peak_df["mz_binned"].isin(contains_peak_ratio.keys())]
+
+    ax = px.box(filtered_peak_df, x='mz_binned',y = 'i_norm')
+    ax.add_bar(x=peak_ratio_df.index, y=-peak_ratio_df["ratio of present peaks"], name = "ratio of spectra where at least " + str(percentoccurmin)+"% contain peak")
+    ax.update_layout(title_text="MS/MS Peak Intensity Distribution")
+    
+    return ax
     
 
 
