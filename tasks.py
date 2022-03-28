@@ -44,7 +44,7 @@ def _construct_df_selections(df, parameters):
             filter_splits = filter_part.split(" ")
             column_part = filter_splits[0]
             operator = filter_splits[1]
-            value_part = filter_splits[2]
+            value_part = filter_splits[2].replace("+", "plus")
 
             column_header = column_part[1:-1]
 
@@ -61,6 +61,7 @@ def _construct_df_selections(df, parameters):
                     if column_header in TO_LOWERCASE_COLUMNS:
                         print("BBBBBBBBBBBBBBBBBBB", file=sys.stderr, flush=True)
                         df = df[df[column_header].str.contains(value_part.lower())]
+                        print(len(df), file=sys.stderr, flush=True)
                     else:
                         print("AAAAAAAAAAAAAAAAAAAA", file=sys.stderr, flush=True)
                         df = df[df[column_header].str.contains(value_part)]
@@ -193,7 +194,7 @@ def task_library_download():
 
         # Creating lower cases for certain columns
         for column in TO_LOWERCASE_COLUMNS:
-            library_df[column] = library_df[column].str.lower()
+            library_df[column] = library_df[column].str.replace("+", "plus").lower() #Pluses are treated weirdly, so we're just going to rename it in the query as well for vaex
 
         # Saving Feather
         output_feather = "./temp/" + "table_{}.feather".format(library_obj["library"])
@@ -408,6 +409,6 @@ celery_instance.conf.task_routes = {
 celery_instance.conf.beat_schedule = {
     "cleanup": {
         "task": "tasks.task_library_download",
-        "schedule": 300
+        "schedule": 84600
     }
 }
