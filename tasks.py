@@ -11,6 +11,8 @@ from utils import load_data_gnps_json
 
 from pyomnisci import connect
 
+TO_LOWERCASE_COLUMNS = ["library_membership", "Adduct", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Compound_Name"]
+
 def get_connection():
     connection = connect(user="admin", password="HyperInteractive", host="gnpslibrary-omniscidb", dbname="omnisci")
     return connection
@@ -42,23 +44,36 @@ def _construct_df_selections(df, parameters):
             filter_splits = filter_part.split(" ")
             column_part = filter_splits[0]
             operator = filter_splits[1]
-            value_part = filter_splits[2]
+            value_part = filter_splits[2].replace("+", "plus")
+
+            column_header = column_part[1:-1]
 
             if operator == "contains" or operator == "scontains":
                 # Checking the type of the column
                 truncated_df = df.head().to_pandas_df()
+
+                print(df.head(), file=sys.stderr, flush=True)
+                print(column_header, value_part, file=sys.stderr, flush=True)
+
                 if pd.api.types.is_integer_dtype(truncated_df[column_part[1:-1]].dtype):
-                    df = df[df[column_part[1:-1]].isin([int(value_part)])]
+                    df = df[df[column_header].isin([int(value_part)])]
                 else:
-                    df = df[df[column_part[1:-1]].str.contains(value_part.lower())]
+                    if column_header in TO_LOWERCASE_COLUMNS:
+                        print("BBBBBBBBBBBBBBBBBBB", file=sys.stderr, flush=True)
+                        df = df[df[column_header].str.contains(value_part.lower())]
+                        print(len(df), file=sys.stderr, flush=True)
+                    else:
+                        print("AAAAAAAAAAAAAAAAAAAA", file=sys.stderr, flush=True)
+                        df = df[df[column_header].str.contains(value_part)]
+                        print(len(df), file=sys.stderr, flush=True)
 
             if operator == ">":
                 # we know its numerical
-                df = df[df[column_part[1:-1]] > float(value_part)]
+                df = df[df[column_header] > float(value_part)]
 
             if operator == "<":
                 # we know its numerical
-                df = df[df[column_part[1:-1]] < float(value_part)]
+                df = df[df[column_header] < float(value_part)]
     except:
         pass
 
@@ -178,9 +193,8 @@ def task_library_download():
         con.load_table_arrow(table_name, pa_df)
 
         # Creating lower cases for certain columns
-        to_lower_columns = ["library_membership", "submit_user", "Ion_Mode", "Instrument", "Pubmed_ID", "PI", "Data_Collector", "Compound_Name"]
-        for column in to_lower_columns:
-            library_df[column] = library_df[column].str.lower()
+        for column in TO_LOWERCASE_COLUMNS:
+            library_df[column] = library_df[column].str.replace("+", "plus").lower() #Pluses are treated weirdly, so we're just going to rename it in the query as well for vaex
 
         # Saving Feather
         output_feather = "./temp/" + "table_{}.feather".format(library_obj["library"])
@@ -395,6 +409,6 @@ celery_instance.conf.task_routes = {
 celery_instance.conf.beat_schedule = {
     "cleanup": {
         "task": "tasks.task_library_download",
-        "schedule": 300
+        "schedule": 84600
     }
 }

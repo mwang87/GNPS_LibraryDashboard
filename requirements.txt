@@ -22,4 +22,4 @@ numpy
 celery>=5.0.5
 celery_once
 vaex
-blake3==0.2.1
+blake3
