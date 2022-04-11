@@ -7,6 +7,8 @@ import pandas as pd
 import pyarrow as pa
 import plotly.express as px
 import requests
+import rdkit
+from rdkit import Chem
 from utils import load_data_gnps_json
 
 from pyomnisci import connect
