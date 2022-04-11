@@ -7,11 +7,18 @@ import pandas as pd
 import pyarrow as pa
 import plotly.express as px
 import requests
-import rdkit
-from rdkit import Chem
 from utils import load_data_gnps_json
 
-from pyomnisci import connect
+try:
+    import rdkit
+    from rdkit import Chem
+except:
+    pass
+
+try:
+    from pyomnisci import connect
+except:
+    pass
 
 def get_connection():
     connection = connect(user="admin", password="HyperInteractive", host="gnpslibrary-omniscidb", dbname="omnisci")
@@ -67,7 +74,7 @@ def _construct_df_selections(df, parameters):
     return df
 
 # Here we will filter by inchikey and return a sub selection of the library containing a specific substructure
-def inchikey_query(library_df,substruct_search):
+def inchikey_query(library_df, substruct_search):
     
     input_library = library_df
     

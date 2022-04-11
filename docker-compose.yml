@@ -68,6 +68,27 @@ services:
         limits:
           memory: 16000M
 
+  gnpslibrary-workerstructure:
+    build:
+      context: .
+      dockerfile: Dockerfile.structure
+    container_name: gnpslibrary-workerstructure
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./temp:/app/temp:rw
+    command: /app/run_workerstructure.sh
+    restart: on-failure
+    depends_on: 
+      - gnpslibrary-redis
+      - gnpslibrary-rabbitmq
+    networks:
+      - default
+      - nginx-net
+    deploy:
+      resources:
+        limits:
+          memory: 16000M
+
   gnpslibrary-omniscidb:
     build:
       context: .
