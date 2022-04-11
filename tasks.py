@@ -64,6 +64,34 @@ def _construct_df_selections(df, parameters):
 
     return df
 
+# Here we will filter by inchikey and return a sub selection of the library containing a specific substructure
+def inchikey_query(library_df,substruct_search):
+    
+    input_library = library_df
+    
+    substructure_filter = substruct_search
+    
+    # identifies all SMILES in library dataframe
+    smiles_list = input_library[input_library['Smiles'].notnull()]['Smiles'].unique()
+    
+    mol_from_smiles = [Chem.MolFromSmiles(AZsmiles) for AZsmiles in smiles_list]
+    
+    # matches SMILES with rdkit molecular object
+    smiles_and_rdkit_obj = dict(zip(np.unique(smiles_list),mol_from_smiles))
+    
+    # exclude dataframe rows that do not contain valid SMILES
+    rem_list = [k for k,v in smiles_and_rdkit_obj.items() if v == None]
+    
+    smiles_and_rdkit_obj_dropNone = {key:val for key, val in smiles_and_rdkit_obj.items() if key not in rem_list}
+    
+    
+    # identify rows that contain substructure
+    matches = [k for k,v in smiles_and_rdkit_obj_dropNone.items() if v.HasSubstructMatch(substructure_filter)]
+    
+    library_df_with_substruc = input_library[input_library['Smiles'].isin(matches)]
+    
+    return library_df_with_substruc
+
 
 # Here we will read the feather data and plot a box plot to understand variability
 @celery_instance.task(time_limit=60)
