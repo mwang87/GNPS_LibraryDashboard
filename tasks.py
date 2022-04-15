@@ -73,12 +73,12 @@ def _construct_df_selections(df, parameters):
 
     return df
 
-# Here we will filter by inchikey and return a sub selection of the library containing a specific substructure
-def inchikey_query(library_df, substruct_search):
+
+
+# identifies rdkit molecular object from SMILES in library dataframe
+def mol_from_smiles_in_library(library_df):
     
     input_library = library_df
-    
-    substructure_filter = substruct_search
     
     # identifies all SMILES in library dataframe
     smiles_list = input_library[input_library['Smiles'].notnull()]['Smiles'].unique()
@@ -86,20 +86,65 @@ def inchikey_query(library_df, substruct_search):
     mol_from_smiles = [Chem.MolFromSmiles(AZsmiles) for AZsmiles in smiles_list]
     
     # matches SMILES with rdkit molecular object
-    smiles_and_rdkit_obj = dict(zip(np.unique(smiles_list),mol_from_smiles))
+    smiles_w_rdkit_obj_all = dict(zip(np.unique(smiles_list),mol_from_smiles))
     
     # exclude dataframe rows that do not contain valid SMILES
-    rem_list = [k for k,v in smiles_and_rdkit_obj.items() if v == None]
+    rem_list = [k for k,v in smiles_w_rdkit_obj_all.items() if v == None]
     
-    smiles_and_rdkit_obj_dropNone = {key:val for key, val in smiles_and_rdkit_obj.items() if key not in rem_list}
+    smiles_w_rdkit_obj = {key:val for key, val in smiles_w_rdkit_obj_all.items() if key not in rem_list}
     
+    return smiles_w_rdkit_obj
+
+# returns a subselection of library dataframe for rows containing substructure of interest
+def substruct_search_from_smiles(library_spec, smiles_w_rdkit_obj, substruct_search):
+    
+    input_library = library_spec
+    
+    smiles_w_rdkit_obj = mol_from_smiles_in_library(input_library)
+    
+    
+    # user input: substructure search as SMILES as string
+    substructure_filter = substruct_search
     
     # identify rows that contain substructure
-    matches = [k for k,v in smiles_and_rdkit_obj_dropNone.items() if v.HasSubstructMatch(substructure_filter)]
+    matches = [k for k,v in smiles_w_rdkit_obj.items() if v.HasSubstructMatch(substructure_filter)]
     
-    library_df_with_substruc = input_library[input_library['Smiles'].isin(matches)]
+    library_df_w_substruc = input_library[input_library['Smiles'].isin(matches)]
     
-    return library_df_with_substruc
+    return library_df_w_substruc
+
+# returns a subselection of library dataframe for rows containing exact structure matches
+def exact_match_search_from_smiles(library_spec, smiles_w_rdkit_obj, exact_match_search):
+    
+    input_library = library_spec
+    
+    smiles_w_rdkit_obj = mol_from_smiles_in_library(input_library)
+    
+    # user input: list of SMILES as strings to search for exact SMILES matches
+    exact_match_list = exact_match_search
+    
+    
+    # identify rows that have exact match
+    matches_list = [k for k in smiles_w_rdkit_obj.keys() 
+           for exact_match in exact_match_list if k == exact_match]
+    
+    library_df_w_exact_match = input_library[input_library['Smiles'].isin(matches_list)]
+    
+    return library_df_w_exact_match
+
+
+# returns a subselection of library dataframe for rows of specific spectrum ID
+def spectrum_id_search(library_spec, spectrum_ID_selection):
+    
+    input_library = library_spec
+
+    # user input: list of spectrum ID as strings
+    spectrum_list = spectrum_ID_selection
+    
+    library_df_w_spec_ID = input_library.loc[input_library['spectrum_id'].isin(spectrum_list)]
+    
+    return library_df_w_spec_ID
+
 
 
 # Here we will read the feather data and plot a box plot to understand variability
