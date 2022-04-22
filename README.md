@@ -1,8 +1,8 @@
 ## GNPS Spectral Library Visualization
 
-We typitcally will deploy this locally. To bring everything up
+We typically will deploy this locally. To bring everything up
 
-```server-compose```
+```make server-compose```
 
 ### Heroku Deployment
 
