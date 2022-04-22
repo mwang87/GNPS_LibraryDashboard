@@ -51,7 +51,7 @@ NAVBAR = dbc.Navbar(
         ),
         dbc.Nav(
             [
-                dbc.NavItem(dbc.NavLink("GNPS - Library Explorer - Version 0.1", href="#")),
+                dbc.NavItem(dbc.NavLink("GNPS - Library Explorer - Valentina - Version 0.1", href="#")),
             ],
         navbar=True)
     ],
