@@ -158,6 +158,7 @@ def task_library_download():
                                  "InChIKey_smiles", "InChIKey_inchi", "Formula_smiles", "Formula_inchi"]]
 
         library_df["Precursor_MZ"] = library_df["Precursor_MZ"].astype(float)
+        library_df["spectrumid_int"] = library_df["spectrum_id"].str.replace("CCMSLIB", "").astype(int)
 
         # Putting into ominisci
         table_name = "gnpslibrary"
@@ -253,7 +254,7 @@ def task_query_data(parameters):
         sql_query_suffix += " ORDER BY {} {}".format(sort_column, sort_direction.upper())
     except:
         # Default sorting by spectrumid
-        sql_query_suffix += " ORDER BY {} {}".format("spectrum_id", "DESC")
+        sql_query_suffix += " ORDER BY {} {}".format("spectrumid_int", "DESC")
         pass
     
     # Limiting the query

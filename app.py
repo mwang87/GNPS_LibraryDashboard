@@ -222,11 +222,12 @@ def draw_output(search):
     result = tasks.task_query_data.delay({})
     results_list, results_count = result.get()
 
+    blacklist_columns = ["spectrumid_int"]
+    show_columns = [{"name": i, "id": i} for i in sorted(results_list[0]) if i not in blacklist_columns]
+
     table_obj = dash_table.DataTable(
         id='datatable',
-        columns=[
-            {"name": i, "id": i} for i in sorted(results_list[0])
-        ],
+        columns=show_columns,
         page_current=0,
         page_size=PAGE_SIZE,
         sort_action="custom",
