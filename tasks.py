@@ -252,6 +252,8 @@ def task_query_data(parameters):
 
         sql_query_suffix += " ORDER BY {} {}".format(sort_column, sort_direction.upper())
     except:
+        # Default sorting by spectrumid
+        sql_query_suffix += " ORDER BY {} {}".format("spectrum_id", "DESC")
         pass
     
     # Limiting the query
