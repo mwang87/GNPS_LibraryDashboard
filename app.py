@@ -382,6 +382,43 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     output_figure_list.append(dcc.Graph(figure=histogram_loss_fig))
     output_figure_list.append(html.Br())
 
+    # Creating an m/z histogram mirror plot
+    mz_intensity = list(histogram_df["counts"])
+    mz_list = list(histogram_df["mz"])
+
+    nl_intensity = list(histogram_loss_df["counts"])
+    nl_intensity = [i * -1 for i in nl_intensity]
+    nl_mz_list = list(histogram_loss_df["mz_nl"])
+
+    merged_mz = mz_list + nl_mz_list
+    merged_intensity = mz_intensity + nl_intensity
+    merged_neg_intensity = [i * -1 for i in merged_intensity]
+    
+    mirror_fig = go.Figure(
+        data=go.Scatter(x=merged_mz, y=merged_intensity, 
+            mode='markers',
+            marker=dict(size=1),
+            error_y=dict(
+                symmetric=False,
+                arrayminus=[0]*len(merged_neg_intensity),
+                array=merged_neg_intensity,
+                width=0,
+                thickness=3
+            ),
+            hoverinfo="x",
+            text=merged_mz
+        )
+    )
+
+    mirror_fig.update_yaxes(zeroline=True, zerolinewidth=1, zerolinecolor='Black')
+    mirror_fig.update_layout(template="plotly_white")
+    mirror_fig.update_xaxes(title_text='m/z (positive), neutral loss m/z (negative)')
+    mirror_fig.update_yaxes(title_text='counts')
+
+    output_figure_list.append(dcc.Graph(figure=mirror_fig))
+    output_figure_list.append(html.Br())
+
+
     # Creating heatmap
     plot_peak_heatmap_result = plot_peak_heatmap_result.get()
     aggregation = xr.DataArray.from_dict(plot_peak_heatmap_result)
