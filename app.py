@@ -347,8 +347,10 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
 
     # Launching all the compute tasks
     histogram_result = tasks.plot_peak_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
+    histogram_losses_result = tasks.plot_peakloss_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
     plot_peak_heatmap_result = tasks.plot_peak_heatmap.delay(query_parameters)
     box_plot_figure = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin)
+    box_plot_losses_figure = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin, neutralloss=True)
 
     # Creating library size bar chart
     library_count_df = pd.DataFrame(library_count_result)
@@ -369,7 +371,18 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     output_figure_list.append(dcc.Graph(figure=histogram_fig))
     output_figure_list.append(html.Br())
 
-    # Creating histogram m/z
+    # Creating histogram by m/z loss
+    histogram_losses_result = histogram_losses_result.get()
+
+    histogram_loss_df = pd.DataFrame(histogram_losses_result)
+    histogram_loss_fig = px.bar(x=histogram_loss_df["mz_nl"], y=histogram_loss_df["counts"], labels={'x': "mz_nl", 'y':'count'}, title="Peak Loss Histogram")
+    histogram_loss_fig.update_layout(bargap=0)
+    histogram_loss_fig.update_traces(marker=dict(line=dict(width=0)))
+
+    output_figure_list.append(dcc.Graph(figure=histogram_loss_fig))
+    output_figure_list.append(html.Br())
+
+    # Creating heatmap
     plot_peak_heatmap_result = plot_peak_heatmap_result.get()
     aggregation = xr.DataArray.from_dict(plot_peak_heatmap_result)
     heatmap_fig = px.imshow(aggregation, origin='lower', labels={'color':'peak intensity'}, height=600)
@@ -384,6 +397,12 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
         output_figure_list.append(dcc.Graph(figure=box_plot_figure))
         output_figure_list.append(html.Br())
 
+    # Creating neutral loss box plots
+    box_plot_losses_figure = box_plot_losses_figure.get()
+
+    if box_plot_losses_figure is not None:
+        output_figure_list.append(dcc.Graph(figure=box_plot_losses_figure))
+        output_figure_list.append(html.Br())
 
     # Creating histogram by neutral loss
     # result = tasks.plot_peakloss_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
