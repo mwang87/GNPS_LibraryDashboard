@@ -67,7 +67,7 @@ def _construct_df_selections(df, parameters):
 
 # Here we will read the feather data and plot a box plot to understand variability
 @celery_instance.task(time_limit=60)
-def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20):
+def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutralloss=False):
     
     table_df = vx.open("./temp/" + 'table_*.feather') 
     table_df = _construct_df_selections(table_df, parameters)
@@ -84,7 +84,10 @@ def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20):
     peak_df = peak_df.to_pandas_df()
     
     # Binning MZ values
-    peak_df['mz_binned'] = peak_df['mz'].astype('int')
+    if neutralloss is False:
+        peak_df['mz_binned'] = peak_df['mz'].astype('int')
+    else:
+        peak_df['mz_binned'] = peak_df['mz_nl'].astype('int')
     unique_mz_binned = peak_df['mz_binned'].unique()
 
     # Calculating ratio of scans that DO NOT have a value at mz_binned
@@ -119,7 +122,10 @@ def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20):
 
     ax = px.box(filtered_peak_df, x='mz_binned',y = 'i_norm')
     ax.add_bar(x=peak_ratio_df.index, y=-peak_ratio_df["ratio of present peaks"], name = "ratio of spectra where at least " + str(percentoccurmin)+"% contain peak")
-    ax.update_layout(title_text="MS/MS Peak Intensity Distribution")
+    if neutralloss is False:
+        ax.update_layout(title_text="MS/MS Peak Intensity Distribution")
+    else:
+        ax.update_layout(title_text="MS/MS Neutral Loss Peak Intensity Distribution")
     
     return ax
 
@@ -294,7 +300,7 @@ import vaex as vx
 import numpy as np
 
 @celery_instance.task(time_limit=60)
-def plot_peak_histogram(parameters, intensitynormmin=0):
+def plot_peak_histogram(parameters, intensitynormmin=0, neutralloss=False):
     table_df = vx.open("./temp/" + 'table_*.feather') 
     table_df = _construct_df_selections(table_df, parameters)
     table_df = table_df[["spectrum_id"]]
@@ -306,45 +312,25 @@ def plot_peak_histogram(parameters, intensitynormmin=0):
     # Filtering other criteria
     peak_df = peak_df[peak_df["i_norm"] > float(intensitynormmin)]
 
-    minmaxx = peak_df.minmax(["mz"])
+    data_column = "mz"
+    if neutralloss:
+        data_column = "mz_nl"
+
+    minmaxx = peak_df.minmax([data_column])
 
     mass_difference = int(minmaxx[0][1] - minmaxx[0][0])
     
-    xcounts = peak_df.count(binby=[peak_df["mz"]], shape=(mass_difference))    
+    xcounts = peak_df.count(binby=[peak_df[data_column]], shape=(mass_difference))    
 
     histogram_df = pd.DataFrame()
     histogram_df["counts"] = xcounts
-    histogram_df["mz"] = np.linspace(minmaxx[0][0], minmaxx[0][1], mass_difference)
+    histogram_df[data_column] = np.linspace(minmaxx[0][0], minmaxx[0][1], mass_difference)
 
     return histogram_df.to_dict(orient="records")
 
 @celery_instance.task(time_limit=60)
 def plot_peakloss_histogram(parameters, intensitynormmin=0):
-    table_df = vx.open("./temp/" + 'table_*.feather') 
-    table_df = _construct_df_selections(table_df, parameters)
-    table_df = table_df[["spectrum_id"]]
-
-    # Merging the spectra
-    peak_df = vx.open("./temp/" + 'peak_*.feather')
-    peak_df = peak_df.join(table_df, left_on='scan', right_on='spectrum_id', how='inner')
-
-    # Filtering other criteria
-    peak_df = peak_df[peak_df["i_norm"] > float(intensitynormmin)]
-
-    # Calculating the loss values
-    peak_df["nl_mz"] = peak_df["precmz"] - peak_df["mz"]
-
-    minmaxx = peak_df.minmax(["nl_mz"])
-
-    mass_difference = int(minmaxx[0][1] - minmaxx[0][0])
-    
-    xcounts = peak_df.count(binby=[peak_df["nl_mz"]], shape=(mass_difference))    
-
-    histogram_df = pd.DataFrame()
-    histogram_df["counts"] = xcounts
-    histogram_df["nl_mz"] = np.linspace(minmaxx[0][0], minmaxx[0][1], mass_difference)
-
-    return histogram_df.to_dict(orient="records")
+    return plot_peak_histogram(parameters, intensitynormmin=intensitynormmin, neutralloss=True)
 
 
 @celery_instance.task(time_limit=60)

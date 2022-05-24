@@ -27,6 +27,7 @@ def load_data_gnps_json(all_spectra):
             peak_dict["i_norm"] = peak[1] / i_max
             peak_dict["i_tic_norm"] = peak[1] / i_sum
             peak_dict["mz"] = peak[0]
+            peak_dict["mz_nl"] = float(spectrum["Precursor_MZ"]) - peak[0]
             peak_dict["scan"] = spectrum["spectrum_id"]
             peak_dict["precmz"] = float(spectrum["Precursor_MZ"])
 
