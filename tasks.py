@@ -121,7 +121,7 @@ def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutr
     filtered_peak_df = filtered_peak_df[filtered_peak_df["mz_binned"].isin(contains_peak_ratio.keys())]
 
     ax = px.box(filtered_peak_df, x='mz_binned',y = 'i_norm')
-    ax.add_bar(x=peak_ratio_df.index, y=-peak_ratio_df["ratio of present peaks"], name = "ratio of spectra where at least " + str(percentoccurmin)+"% contain peak")
+    ax.add_bar(x=peak_ratio_df.index, y=-peak_ratio_df["ratio of present peaks"], name="ratio of spectra where at least " + str(percentoccurmin)+"% contain peak")
     if neutralloss is False:
         ax.update_layout(title_text="MS/MS Peak Intensity Distribution")
     else:

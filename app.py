@@ -330,6 +330,15 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     query_parameters["page_size"] = page_size
     query_parameters["sort_by"] = sort_by
     query_parameters["filter"] = filter
+
+    graph_config = {
+        "toImageButtonOptions":{
+            "format": "svg",
+            'filename': 'plot',
+            'height': None, 
+            'width': None,
+        }
+    }
     
     library_count_result = tasks.query_library_counts.delay()
     library_count_result = library_count_result.get()
@@ -379,7 +388,7 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     histogram_loss_fig.update_layout(bargap=0)
     histogram_loss_fig.update_traces(marker=dict(line=dict(width=0)))
 
-    output_figure_list.append(dcc.Graph(figure=histogram_loss_fig))
+    output_figure_list.append(dcc.Graph(figure=histogram_loss_fig, config=graph_config))
     output_figure_list.append(html.Br())
 
     # Creating an m/z histogram mirror plot
@@ -415,7 +424,7 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     mirror_fig.update_xaxes(title_text='m/z (positive), neutral loss m/z (negative)')
     mirror_fig.update_yaxes(title_text='counts')
 
-    output_figure_list.append(dcc.Graph(figure=mirror_fig))
+    output_figure_list.append(dcc.Graph(figure=mirror_fig, config=graph_config))
     output_figure_list.append(html.Br())
 
 
@@ -424,21 +433,21 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     aggregation = xr.DataArray.from_dict(plot_peak_heatmap_result)
     heatmap_fig = px.imshow(aggregation, origin='lower', labels={'color':'peak intensity'}, height=600)
 
-    output_figure_list.append(dcc.Graph(figure=heatmap_fig))
+    output_figure_list.append(dcc.Graph(figure=heatmap_fig, config=graph_config))
     output_figure_list.append(html.Br())
 
     # Creating box plots
     box_plot_figure = box_plot_figure.get()
 
     if box_plot_figure is not None:
-        output_figure_list.append(dcc.Graph(figure=box_plot_figure))
+        output_figure_list.append(dcc.Graph(figure=box_plot_figure, config=graph_config))
         output_figure_list.append(html.Br())
 
     # Creating neutral loss box plots
     box_plot_losses_figure = box_plot_losses_figure.get()
 
     if box_plot_losses_figure is not None:
-        output_figure_list.append(dcc.Graph(figure=box_plot_losses_figure))
+        output_figure_list.append(dcc.Graph(figure=box_plot_losses_figure, config=graph_config))
         output_figure_list.append(html.Br())
 
     # Creating histogram by neutral loss
