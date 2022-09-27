@@ -1,0 +1,18 @@
+
+version: '3'
+services:
+  wanglab-jupyter-libraryexplorer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wanglab-jupyter-libraryexplorer
+    volumes:
+      - .:/home/jovyan/work:rw
+    ports:
+    - "8593:9000"
+    restart: unless-stopped
+    command: jupyter lab --ip='*' --port=9000 --no-browser --NotebookApp.token='YOUR_PASSWORD' --allow-root
+    deploy:
+     resources:
+       limits:
+         memory: 8000M
