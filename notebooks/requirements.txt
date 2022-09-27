@@ -6,3 +6,4 @@ pyteomics
 requests
 plotly
 rdkit
+pyarrow
