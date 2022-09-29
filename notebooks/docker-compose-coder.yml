@@ -8,12 +8,12 @@ services:
     volumes:
       - .:/config/workspace:rw
     ports:
-    - "8443:8443"
+    - "8594:8443"
     restart: unless-stopped
     deploy:
      resources:
        limits:
-         memory: 16000M
+         memory: 8000M
     environment:
       - PUID=1000
       - PGID=1000
