@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
+import xarray as xr
+import sys
 import dash
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
-import dash_table
+from dash import dash_table
 import plotly.express as px
-import plotly.graph_objects as go 
+import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
+from rdkit.Chem.Draw import rdMolDraw2D
+from rdkit import Chem
+
+import base64
 import os
+from io import BytesIO
 from zipfile import ZipFile
 import urllib.parse
 from flask import Flask, send_from_directory, request
@@ -31,7 +38,8 @@ from flask_caching import Cache
 import tasks
 
 server = Flask(__name__)
-app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, server=server,
+                external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = 'GNPS - Library Explorer'
 
 cache = Cache(app.server, config={
@@ -46,14 +54,16 @@ server = app.server
 NAVBAR = dbc.Navbar(
     children=[
         dbc.NavbarBrand(
-            html.Img(src="https://gnps-cytoscape.ucsd.edu/static/img/GNPS_logo.png", width="120px"),
+            html.Img(
+                src="https://gnps-cytoscape.ucsd.edu/static/img/GNPS_logo.png", width="120px"),
             href="https://gnps.ucsd.edu"
         ),
         dbc.Nav(
             [
-                dbc.NavItem(dbc.NavLink("GNPS - Library Explorer - Version 0.1", href="#")),
+                dbc.NavItem(dbc.NavLink(
+                    "GNPS - Library Explorer - Version 0.1", href="#")),
             ],
-        navbar=True)
+            navbar=True)
     ],
     color="light",
     dark=False,
@@ -63,34 +73,40 @@ NAVBAR = dbc.Navbar(
 DATASELECTION_CARD = [
     dbc.CardHeader(html.H5("Data Selection")),
     dbc.CardBody(
-        [   
+        [
             html.H5(children='Filters'),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupAddon("Peak Histogram Min intensity norm (out of 1.0)", addon_type="prepend"),
-                    dbc.Input(id='intensitynormmin', placeholder="intensitynormmin", value="0.05"),
+                    dbc.InputGroupAddon(
+                        "Peak Histogram Min intensity norm (out of 1.0)", addon_type="prepend"),
+                    dbc.Input(id='intensitynormmin',
+                              placeholder="intensitynormmin", value="0.05"),
                 ],
                 className="mb-3",
             ),
             html.Br(),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupAddon("Peak Percent (out of 100)", addon_type="prepend"),
-                    dbc.Input(id='percentoccurmin', placeholder="percentoccurmin", value="20"),
+                    dbc.InputGroupAddon(
+                        "Peak Percent (out of 100)", addon_type="prepend"),
+                    dbc.Input(id='percentoccurmin',
+                              placeholder="percentoccurmin", value="20"),
                 ],
                 className="mb-3",
             ),
             dbc.Row([
-                dbc.Button("Copy Link", block=True, color="info", id="copy_link_button", n_clicks=0),
-                dbc.Button("Download Filtered Table", block=True, color="info", id="download_button", n_clicks=0),
+                dbc.Button("Copy Link", block=True, color="info",
+                           id="copy_link_button", n_clicks=0),
+                dbc.Button("Download Filtered Table", block=True,
+                           color="info", id="download_button", n_clicks=0),
                 dcc.Download(id="download-filtered-data"),
-            ]), 
+            ]),
             html.Div(
                 [
                     dcc.Link(id="query_link", href="#", target="_blank"),
                 ],
                 style={
-                        "display" :"none"
+                    "display": "none"
                 }
             ),
         ]
@@ -111,6 +127,33 @@ MIDDLE_DASHBOARD = [
         [
             html.Div(id="query_summary"),
             html.Br(),
+            html.Div(
+                id="SMILES_search",
+                children=[
+
+                    dcc.Input(
+                        id="SMILES_text",
+                        type="text",
+                        placeholder="input SMILES",
+                        style={"flex": 1, "align-self": "stretch"}
+                    ),
+                    html.Img(
+                        id="SMILES_preview_img",
+                        src="https://images.freeimages.com/images/previews/b05/more-marbles-less-random-1483002.jpg",
+                        height="150px",
+                        width="300px",
+                        style={"display": "none"}
+                    ),
+                    html.Div(id="SMILES_preview_text"),
+                    html.P(id="SMILES_parsed_filter",
+                           style={"display": "none"}),
+                    dbc.Button("Filter Structure", color="info",
+                               id="SMILES_button", n_clicks=0, style={"height": "50px"})
+
+                ],
+                style={"display": "flex",
+                       "flex-direction": "row", "align-items": "center", "margin": "10px", "min-height": "150px"}
+            ),
             dcc.Loading(
                 id="output",
                 children=[html.Div([html.Div(id="loading-output-23")])],
@@ -124,7 +167,8 @@ MIDDLE_DASHBOARD = [
                 type="default",
             ),
             html.Br(),
-            dbc.Button("Update Histograms", block=True, color="info", id="histogram_button", n_clicks=0),
+            dbc.Button("Update Histograms", block=True, color="info",
+                       id="histogram_button", n_clicks=0),
             html.Hr(),
             dcc.Loading(
                 id="plots",
@@ -143,8 +187,8 @@ CONTRIBUTORS_DASHBOARD = [
             html.Br(),
             html.Br(),
             html.H5("Citation"),
-            html.A('Mingxun Wang, Jeremy J. Carver, Vanessa V. Phelan, Laura M. Sanchez, Neha Garg, Yao Peng, Don Duy Nguyen et al. "Sharing and community curation of mass spectrometry data with Global Natural Products Social Molecular Networking." Nature biotechnology 34, no. 8 (2016): 828. PMID: 27504778', 
-                    href="https://www.nature.com/articles/nbt.3597")
+            html.A('Mingxun Wang, Jeremy J. Carver, Vanessa V. Phelan, Laura M. Sanchez, Neha Garg, Yao Peng, Don Duy Nguyen et al. "Sharing and community curation of mass spectrometry data with Global Natural Products Social Molecular Networking." Nature biotechnology 34, no. 8 (2016): 828. PMID: 27504778',
+                   href="https://www.nature.com/articles/nbt.3597")
         ]
     )
 ]
@@ -153,8 +197,8 @@ EXAMPLES_DASHBOARD = [
     dbc.CardHeader(html.H5("Examples")),
     dbc.CardBody(
         [
-            html.A('MassIVE-KB Candidate Spectra', 
-                    href="/?usi1=mzspec:GNPS:TASK-3ba5c4280636448eb4504e3e3a2f3e25-all_library_spectrum_candidates_file/"),
+            html.A('MassIVE-KB Candidate Spectra',
+                   href="/?usi1=mzspec:GNPS:TASK-3ba5c4280636448eb4504e3e3a2f3e25-all_library_spectrum_candidates_file/"),
         ]
     )
 ]
@@ -189,14 +233,46 @@ BODY = dbc.Container(
 
 app.layout = html.Div(children=[NAVBAR, BODY])
 
+
 def _get_url_param(param_dict, key, default):
     return param_dict.get(key, [default])[0]
 
+
+@app.callback(
+    [Output('SMILES_preview_img', 'src'),
+     Output('SMILES_preview_img', 'style'),
+     Output('SMILES_preview_text', 'children'),
+     Output('SMILES_preview_text', 'style'),
+     Output('SMILES_parsed_filter', 'children')],
+    Input('SMILES_button', 'n_clicks'),
+    State('SMILES_text', 'value'))
+def update_output(clicks, input_value):
+    if input_value is not None and len(input_value) > 0:
+        try:
+            # 'COC(=O)c1c[nH]c2cc(OC(C)C)c(OC(C)C)cc2c1=O'
+            smiles = input_value
+            buffered = BytesIO()
+            d2d = rdMolDraw2D.MolDraw2DSVG(600, 600)
+            opts = d2d.drawOptions()
+            opts.clearBackground = False
+            d2d.DrawMolecule(Chem.MolFromSmiles(smiles))
+            d2d.FinishDrawing()
+            img_str = d2d.GetDrawingText()
+            buffered.write(str.encode(img_str))
+            img_str = base64.b64encode(buffered.getvalue())
+            img_str = f"data:image/svg+xml;base64,{repr(img_str)[2:-1]}"
+            return [img_str, {"display": "block"}, "text", {"display": "none"}, input_value]
+        except:
+            return ["text", {"display": "none"}, "Parsing Error", {"display": "block", "color": "red", "width": "300px", "text-align": "center"}, ""]
+    else:
+        return ["text", {"display": "none"}, "Structure Preview", {"display": "block", "color": "darkgray", "width": "300px", "text-align": "center"}, ""]
+
+
 @app.callback([
-                Output('datatable', 'filter_query'),
-                Output('intensitynormmin', 'value'),
-              ],
-              [Input('url', 'search')])
+    Output('datatable', 'filter_query'),
+    Output('intensitynormmin', 'value'),
+],
+    [Input('url', 'search')])
 def determine_url_parameters(search):
     try:
         query_dict = urllib.parse.parse_qs(search[1:])
@@ -204,26 +280,28 @@ def determine_url_parameters(search):
         query_dict = {}
 
     filter_query = _get_url_param(query_dict, "filter_query", dash.no_update)
-    intensitynormmin = _get_url_param(query_dict, "intensitynormmin", dash.no_update)
-    
+    intensitynormmin = _get_url_param(
+        query_dict, "intensitynormmin", dash.no_update)
+
     return [filter_query, intensitynormmin]
 
 
-import sys
 PAGE_SIZE = 20
 
+
 @app.callback([
-                Output('output', 'children')
-              ],
-              [
-                  Input('url', 'search'),
-            ])
+    Output('output', 'children')
+],
+    [
+    Input('url', 'search'),
+])
 def draw_output(search):
     result = tasks.task_query_data.delay({})
     results_list, results_count = result.get()
 
     blacklist_columns = ["spectrumid_int"]
-    show_columns = [{"name": i, "id": i} for i in sorted(results_list[0]) if i not in blacklist_columns]
+    show_columns = [{"name": i, "id": i}
+                    for i in sorted(results_list[0]) if i not in blacklist_columns]
 
     table_obj = dash_table.DataTable(
         id='datatable',
@@ -271,26 +349,38 @@ def draw_output(search):
 
     return [table_obj]
 
+
 @app.callback([
-        Output('datatable', 'data'),
-        Output('datatable', 'tooltip_data'),
-        Output('datatable', 'page_count'),
-        Output('query_summary', 'children')
-    ],
+    Output('datatable', 'data'),
+    Output('datatable', 'tooltip_data'),
+    Output('datatable', 'page_count'),
+    Output('query_summary', 'children')
+],
     [
         Input('datatable', "page_current"),
         Input('datatable', "page_size"),
         Input('datatable', 'sort_by'),
-        Input('datatable', "filter_query")
-    ])
-def update_table(page_current, page_size, sort_by, filter):
+        Input('datatable', "filter_query"),
+        Input('SMILES_parsed_filter', 'children'),
+])
+def update_table(page_current, page_size, sort_by, filter, smiles_filter):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
     query_parameters["sort_by"] = sort_by
+    print("here", smiles_filter)
+    if smiles_filter is not None and len(smiles_filter) > 0:
+        if filter is None:
+            filter = ""
+        elif len(filter) > 0:
+            filter += " && "
+        filter += "{{Smiles}} contains {}".format(smiles_filter)
+    print("here2", filter)
     query_parameters["filter"] = filter
+    query_parameters["smiles-filter"] = smiles_filter
 
     try:
+        print('query parameter filters are:', filter)
         result = tasks.task_query_data.delay(query_parameters)
         results_list, results_count = result.get()
     except:
@@ -306,16 +396,16 @@ def update_table(page_current, page_size, sort_by, filter):
         } for row in results_list
     ]
 
+    print('header list', len(results_list))
     return [results_list, tooltip_data, page_count, "Total Results {}".format(results_count)]
 
-import xarray as xr
 
 @app.callback([
-        Output('plots', 'children')
-    ],
+    Output('plots', 'children')
+],
     [
         Input('histogram_button', "n_clicks"),
-    ],
+],
     [
         State('datatable', "page_current"),
         State('datatable', "page_size"),
@@ -323,7 +413,7 @@ import xarray as xr
         State('datatable', "filter_query"),
         State('intensitynormmin', 'value'),
         State('percentoccurmin', 'value'),
-    ])
+])
 def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin):
     query_parameters = {}
     query_parameters["page_current"] = page_current
@@ -332,14 +422,14 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     query_parameters["filter"] = filter
 
     graph_config = {
-        "toImageButtonOptions":{
+        "toImageButtonOptions": {
             "format": "svg",
             'filename': 'plot',
-            'height': None, 
+            'height': None,
             'width': None,
         }
     }
-    
+
     library_count_result = tasks.query_library_counts.delay()
     library_count_result = library_count_result.get()
 
@@ -355,16 +445,21 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     output_figure_list = ["Library Sizes", html.Br(), html.Br()]
 
     # Launching all the compute tasks
-    histogram_result = tasks.plot_peak_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
-    histogram_losses_result = tasks.plot_peakloss_histogram.delay(query_parameters, intensitynormmin=intensitynormmin)
+    histogram_result = tasks.plot_peak_histogram.delay(
+        query_parameters, intensitynormmin=intensitynormmin)
+    histogram_losses_result = tasks.plot_peakloss_histogram.delay(
+        query_parameters, intensitynormmin=intensitynormmin)
     plot_peak_heatmap_result = tasks.plot_peak_heatmap.delay(query_parameters)
-    box_plot_figure = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin)
-    box_plot_losses_figure = tasks.plot_peak_boxplots.delay(query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin, neutralloss=True)
+    box_plot_figure = tasks.plot_peak_boxplots.delay(
+        query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin)
+    box_plot_losses_figure = tasks.plot_peak_boxplots.delay(
+        query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin, neutralloss=True)
 
     # Creating library size bar chart
     library_count_df = pd.DataFrame(library_count_result)
     library_count_df["numberspectra"] = library_count_df['EXPR$1']
-    library_count_fig = px.bar(library_count_df, y='library_membership', x='numberspectra', log_x=True, orientation="h", height=800)
+    library_count_fig = px.bar(library_count_df, y='library_membership',
+                               x='numberspectra', log_x=True, orientation="h", height=800)
 
     output_figure_list.append(dcc.Graph(figure=library_count_fig))
     output_figure_list.append(html.Br())
@@ -373,7 +468,8 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     histogram_result = histogram_result.get()
 
     histogram_df = pd.DataFrame(histogram_result)
-    histogram_fig = px.bar(x=histogram_df["mz"], y=histogram_df["counts"], labels={'x': "mz", 'y':'count'}, title="Peak Histogram")
+    histogram_fig = px.bar(x=histogram_df["mz"], y=histogram_df["counts"], labels={
+                           'x': "mz", 'y': 'count'}, title="Peak Histogram")
     histogram_fig.update_layout(bargap=0)
     histogram_fig.update_traces(marker=dict(line=dict(width=0)))
 
@@ -384,11 +480,13 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     histogram_losses_result = histogram_losses_result.get()
 
     histogram_loss_df = pd.DataFrame(histogram_losses_result)
-    histogram_loss_fig = px.bar(x=histogram_loss_df["mz_nl"], y=histogram_loss_df["counts"], labels={'x': "mz_nl", 'y':'count'}, title="Peak Loss Histogram")
+    histogram_loss_fig = px.bar(x=histogram_loss_df["mz_nl"], y=histogram_loss_df["counts"], labels={
+                                'x': "mz_nl", 'y': 'count'}, title="Peak Loss Histogram")
     histogram_loss_fig.update_layout(bargap=0)
     histogram_loss_fig.update_traces(marker=dict(line=dict(width=0)))
 
-    output_figure_list.append(dcc.Graph(figure=histogram_loss_fig, config=graph_config))
+    output_figure_list.append(
+        dcc.Graph(figure=histogram_loss_fig, config=graph_config))
     output_figure_list.append(html.Br())
 
     # Creating an m/z histogram mirror plot
@@ -402,52 +500,58 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     merged_mz = mz_list + nl_mz_list
     merged_intensity = mz_intensity + nl_intensity
     merged_neg_intensity = [i * -1 for i in merged_intensity]
-    
+
     mirror_fig = go.Figure(
-        data=go.Scatter(x=merged_mz, y=merged_intensity, 
-            mode='markers',
-            marker=dict(size=1),
-            error_y=dict(
-                symmetric=False,
-                arrayminus=[0]*len(merged_neg_intensity),
-                array=merged_neg_intensity,
-                width=0,
-                thickness=3
-            ),
-            hoverinfo="x",
-            text=merged_mz
-        )
+        data=go.Scatter(x=merged_mz, y=merged_intensity,
+                        mode='markers',
+                        marker=dict(size=1),
+                        error_y=dict(
+                            symmetric=False,
+                            arrayminus=[0]*len(merged_neg_intensity),
+                            array=merged_neg_intensity,
+                            width=0,
+                            thickness=3
+                        ),
+                        hoverinfo="x",
+                        text=merged_mz
+                        )
     )
 
-    mirror_fig.update_yaxes(zeroline=True, zerolinewidth=1, zerolinecolor='Black')
+    mirror_fig.update_yaxes(
+        zeroline=True, zerolinewidth=1, zerolinecolor='Black')
     mirror_fig.update_layout(template="plotly_white")
-    mirror_fig.update_xaxes(title_text='m/z (positive), neutral loss m/z (negative)')
+    mirror_fig.update_xaxes(
+        title_text='m/z (positive), neutral loss m/z (negative)')
     mirror_fig.update_yaxes(title_text='counts')
 
-    output_figure_list.append(dcc.Graph(figure=mirror_fig, config=graph_config))
+    output_figure_list.append(
+        dcc.Graph(figure=mirror_fig, config=graph_config))
     output_figure_list.append(html.Br())
-
 
     # Creating heatmap
     plot_peak_heatmap_result = plot_peak_heatmap_result.get()
     aggregation = xr.DataArray.from_dict(plot_peak_heatmap_result)
-    heatmap_fig = px.imshow(aggregation, origin='lower', labels={'color':'peak intensity'}, height=600)
+    heatmap_fig = px.imshow(aggregation, origin='lower', labels={
+                            'color': 'peak intensity'}, height=600)
 
-    output_figure_list.append(dcc.Graph(figure=heatmap_fig, config=graph_config))
+    output_figure_list.append(
+        dcc.Graph(figure=heatmap_fig, config=graph_config))
     output_figure_list.append(html.Br())
 
     # Creating box plots
     box_plot_figure = box_plot_figure.get()
 
     if box_plot_figure is not None:
-        output_figure_list.append(dcc.Graph(figure=box_plot_figure, config=graph_config))
+        output_figure_list.append(
+            dcc.Graph(figure=box_plot_figure, config=graph_config))
         output_figure_list.append(html.Br())
 
     # Creating neutral loss box plots
     box_plot_losses_figure = box_plot_losses_figure.get()
 
     if box_plot_losses_figure is not None:
-        output_figure_list.append(dcc.Graph(figure=box_plot_losses_figure, config=graph_config))
+        output_figure_list.append(
+            dcc.Graph(figure=box_plot_losses_figure, config=graph_config))
         output_figure_list.append(html.Br())
 
     # Creating histogram by neutral loss
@@ -461,23 +565,25 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
 
     return [output_figure_list]
 
+
 @app.callback([
-                Output('spectrumrendering', 'children')
-              ],
-              [
-                  Input('datatable', 'derived_virtual_data'),
-                  Input('datatable', 'derived_virtual_selected_rows'),
-              ])
+    Output('spectrumrendering', 'children')
+],
+    [
+    Input('datatable', 'derived_virtual_data'),
+    Input('datatable', 'derived_virtual_selected_rows'),
+])
 def draw_spectrum(table_data, table_selected):
     try:
         selected_row = table_data[table_selected[0]]
     except:
         return ["Choose Library Spectrum to Show Spectra"]
 
-    selected_usi = "mzspec:GNPS:GNPS-LIBRARY:accession:" + selected_row["spectrum_id"]
+    selected_usi = "mzspec:GNPS:GNPS-LIBRARY:accession:" + \
+        selected_row["spectrum_id"]
 
     mirror_plot_params = {
-        'usi1':selected_usi,
+        'usi1': selected_usi,
         'width': 10.0,
         'height': 6.0,
         # 'mz_min': ,
@@ -493,16 +599,19 @@ def draw_spectrum(table_data, table_selected):
     usi_url = "https://metabolomics-usi.ucsd.edu/"
 
     img_obj = html.Img(src=usi_url + "svg?" + url_params)
-    img_link_url = html.A(img_obj, href=usi_url + "dashinterface?" + url_params, target="_blank")
-    usi_link_url = html.A(selected_usi, href=usi_url + "dashinterface?" + url_params, target="_blank")
+    img_link_url = html.A(img_obj, href=usi_url +
+                          "dashinterface?" + url_params, target="_blank")
+    usi_link_url = html.A(selected_usi, href=usi_url +
+                          "dashinterface?" + url_params, target="_blank")
 
     return [[usi_link_url, html.Br(), img_link_url]]
+
 
 @app.callback(
     [
         Output("download-filtered-data", "data"),
     ],
-    [   
+    [
         Input("download_button", "n_clicks"),
     ],
     [
@@ -528,13 +637,14 @@ def download_data(n_clicks, sort_by, filter_query):
 
     return [dcc.send_data_frame(df.to_csv, "filtered_library.csv")]
 
+
 @app.callback([
-                Output('query_link', 'href'),
-              ],
-                [
-                    Input('datatable', 'filter_query'),
-                    Input('intensitynormmin', 'value'),
-                ])
+    Output('query_link', 'href'),
+],
+    [
+    Input('datatable', 'filter_query'),
+    Input('intensitynormmin', 'value'),
+])
 def draw_url(filter_query, intensitynormmin):
     params = {}
     params["filter_query"] = filter_query
@@ -583,10 +693,12 @@ app.clientside_callback(
 def api():
     return "Up"
 
+
 @server.route("/load")
 def load():
     tasks.task_library_download.delay()
     return "Loading"
+
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=5000, host="0.0.0.0")
