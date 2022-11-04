@@ -147,7 +147,7 @@ MIDDLE_DASHBOARD = [
                     html.Div(id="SMILES_preview_text"),
                     html.P(id="SMILES_parsed_filter",
                            style={"display": "none"}),
-                    dbc.Button("Filter Structure", color="info",
+                    dbc.Button("Filter Structures", color="info",
                                id="SMILES_button", n_clicks=0, style={"height": "50px"})
 
                 ],
@@ -368,20 +368,26 @@ def update_table(page_current, page_size, sort_by, filter, smiles_filter):
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
     query_parameters["sort_by"] = sort_by
-    print("here", smiles_filter)
-    if smiles_filter is not None and len(smiles_filter) > 0:
-        if filter is None:
-            filter = ""
-        elif len(filter) > 0:
-            filter += " && "
-        filter += "{{Smiles}} contains {}".format(smiles_filter)
-    print("here2", filter)
+
+    # # basic smiles
+    # if smiles_filter is not None and len(smiles_filter) > 0:
+    #     if filter is None:
+    #         filter = ""
+    #     elif len(filter) > 0:
+    #         filter += " && "
+    #     filter += "{{Smiles}} contains {}".format(smiles_filter)
+
     query_parameters["filter"] = filter
-    query_parameters["smiles-filter"] = smiles_filter
+    query_parameters["smiles_filter"] = smiles_filter
 
     try:
         print('query parameter filters are:', filter)
-        result = tasks.task_query_data.delay(query_parameters)
+
+        if smiles_filter is not None and len(smiles_filter) > 0:
+            result = tasks.task_query_data_with_smiles.delay(query_parameters)
+        # basic smiles
+        else:
+            result = tasks.task_query_data.delay(query_parameters)
         results_list, results_count = result.get()
     except:
         return [[], [], 0, "Query Error"]
@@ -413,13 +419,15 @@ def update_table(page_current, page_size, sort_by, filter, smiles_filter):
         State('datatable', "filter_query"),
         State('intensitynormmin', 'value'),
         State('percentoccurmin', 'value'),
+        State('SMILES_parsed_filter', 'children')
 ])
-def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin):
+def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin, smiles_filter):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
     query_parameters["sort_by"] = sort_by
     query_parameters["filter"] = filter
+    query_parameters["smiles_filter"] = smiles_filter
 
     graph_config = {
         "toImageButtonOptions": {
