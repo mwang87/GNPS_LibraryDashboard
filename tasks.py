@@ -12,6 +12,7 @@ import plotly.express as px
 import requests
 from utils import load_data_gnps_json
 from rdkit import Chem
+from rdkit.rdBase import BlockLogs
 
 from pyomnisci import connect
 
@@ -19,13 +20,19 @@ smiles_map = {}
 
 def update_map():
     df = vx.open("./temp/" + 'table_*.feather')
-    df.to_pandas_df()
+    df = df.to_pandas_df()
     smiles = df['Smiles'].tolist()
+    block = BlockLogs()
     for i in range(len(smiles)):
         if smiles[i] in smiles_map:
-            smiles_map[smiles[i]].append(i)
+            smiles_map[smiles[i]][0].append(i)
         else:
-            smiles_map[smiles[i]] = [i]
+            try:
+                m = Chem.MolFromSmiles(smiles[i])
+                smiles_map[smiles[i]] = [[i], m]
+            except:
+                smiles_map[smiles[i]] = [[i], None]
+    del block
 
 def get_connection():
     connection = connect(user="admin", password="HyperInteractive",
@@ -82,19 +89,30 @@ def _construct_df_selections(df, parameters):
     except:
         pass
     
-    df.to_pandas_df()
     if parameters["smiles_filter"] is not None and len(parameters["smiles_filter"]) > 0:
+        if len(smiles_map.keys()) == 0:
+            update_map()
+        
+        block = BlockLogs()
         filter_mol = Chem.MolFromSmiles(parameters["smiles_filter"])
         matches = []
         for smile in smiles_map:
             try:
-                temp_mol = Chem.MolFromSmiles(smile)
+                temp_mol = smiles_map[smile][1]
                 if temp_mol.HasSubstructMatch(filter_mol):
-                    matches.extend(smiles_map[smile])
+                    matches.extend(smiles_map[smile][0])
             except:
                 pass
-        matches = list(set(matches))
-        df = df.iloc[matches]
+        # mask = np.full(len(df), False)
+        # matches = set(matches)
+        # mask[matches] = True
+        del block
+        print('we have ', len(matches), 'number of matches! and a total of', len(smiles_map.keys()))
+
+        # df['index'] = vx.vconstant(True, len(df))
+        df['index'] = vx.vrange(0, len(df))
+        df = df[df.index.isin(matches)]
+        # df = df.iloc[matches]
 
     return df
 
@@ -252,8 +270,6 @@ def task_library_download():
                 "peak_{}_{}.feather".format(library_obj["library"], i)
             peaks_df = load_data_gnps_json(spectra_list)
             peaks_df.reset_index().to_feather(output_feather, compression="uncompressed")
-        
-        break
     
     update_map()
 
@@ -341,8 +357,12 @@ def task_query_data_with_smiles(parameters):
     page_size = parameters.get("page_size", 20)
     table_df = vx.open("./temp/" + 'table_*.feather')
 
+    #applying the filters
     table_df = _construct_df_selections(table_df, parameters)
-
+    
+    #changing from local vaex local dataframe to dataframe to support sort
+    table_df = table_df.to_pandas_df()
+    
     # Trying to do sorting
     try:
         # Using these sort by columns
@@ -357,7 +377,6 @@ def task_query_data_with_smiles(parameters):
         table_df = table_df.sort_values(by="spectrumid_int", ascending=False)
         pass
 
-    #
     results_count = len(table_df.index)
     table_df = table_df[parameters.get("page_current", 0) * page_size:
                         (parameters.get("page_current", 0)+1) * page_size]

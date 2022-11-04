@@ -1,0 +1,20 @@
+version: '3'
+services:
+  gnpslibrary-dash:
+    volumes:
+      - ${PWD}/app.py:/app/app.py:rw
+      - ${PWD}/tasks.py:/app/tasks.py:rw
+      - ${PWD}/utils.py:/app/utils.py:rw
+    command: /app/run_develop_server.sh
+
+  gnpslibrary-worker:
+    volumes:
+      - ${PWD}/tasks.py:/app/tasks.py:rw
+      - ${PWD}/utils.py:/app/utils.py:rw
+    command: /app/run_worker_develop.sh
+
+  gnpslibrary-loadworker:
+    volumes:
+      - ${PWD}/tasks.py:/app/tasks.py:rw
+      - ${PWD}/test.py:/app/test.py:rw
+    command: /app/run_workerload_develop.sh
