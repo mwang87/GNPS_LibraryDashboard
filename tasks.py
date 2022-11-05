@@ -16,6 +16,7 @@ from rdkit.rdBase import BlockLogs
 
 from pyomnisci import connect
 
+# Maps smiles to tuple of ([indexes], Mol) where Mol is rdkit Mol object
 smiles_map = {}
 
 def update_map():
