@@ -38,8 +38,8 @@ from flask_caching import Cache
 import tasks
 
 server = Flask(__name__)
-app = dash.Dash(__name__, server=server,
-                external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, suppress_callback_exceptions=True, 
+                server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = 'GNPS - Library Explorer'
 
 cache = Cache(app.server, config={
@@ -245,7 +245,7 @@ def _get_url_param(param_dict, key, default):
      Output('SMILES_preview_text', 'style'),
      Output('SMILES_parsed_filter', 'children')],
     Input('SMILES_button', 'n_clicks'),
-    State('SMILES_text', 'value'))
+    State('SMILES_text', 'value'), prevent_initial_call=True)
 def update_output(clicks, input_value):
     if input_value is not None and len(input_value) > 0:
         try:
@@ -362,30 +362,18 @@ def draw_output(search):
         Input('datatable', 'sort_by'),
         Input('datatable', "filter_query"),
         Input('SMILES_parsed_filter', 'children'),
-])
+], prevent_initial_call=True)
 def update_table(page_current, page_size, sort_by, filter, smiles_filter):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
     query_parameters["sort_by"] = sort_by
-
-    # # basic smiles
-    # if smiles_filter is not None and len(smiles_filter) > 0:
-    #     if filter is None:
-    #         filter = ""
-    #     elif len(filter) > 0:
-    #         filter += " && "
-    #     filter += "{{Smiles}} contains {}".format(smiles_filter)
-
     query_parameters["filter"] = filter
     query_parameters["smiles_filter"] = smiles_filter
 
     try:
-        print('query parameter filters are:', filter)
-
         if smiles_filter is not None and len(smiles_filter) > 0:
             result = tasks.task_query_data_with_smiles.delay(query_parameters)
-        # basic smiles
         else:
             result = tasks.task_query_data.delay(query_parameters)
         results_list, results_count = result.get()
@@ -420,7 +408,7 @@ def update_table(page_current, page_size, sort_by, filter, smiles_filter):
         State('intensitynormmin', 'value'),
         State('percentoccurmin', 'value'),
         State('SMILES_parsed_filter', 'children')
-])
+], prevent_initial_call=True)
 def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin, smiles_filter):
     query_parameters = {}
     query_parameters["page_current"] = page_current
@@ -580,7 +568,8 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
     [
     Input('datatable', 'derived_virtual_data'),
     Input('datatable', 'derived_virtual_selected_rows'),
-])
+], prevent_initial_call=True
+)
 def draw_spectrum(table_data, table_selected):
     try:
         selected_row = table_data[table_selected[0]]
@@ -626,7 +615,7 @@ def draw_spectrum(table_data, table_selected):
         State('datatable', 'sort_by'),
         State('datatable', "filter_query")
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=True
 )
 def download_data(n_clicks, sort_by, filter_query):
     query_parameters = {}
@@ -652,7 +641,7 @@ def download_data(n_clicks, sort_by, filter_query):
     [
     Input('datatable', 'filter_query'),
     Input('intensitynormmin', 'value'),
-])
+], prevent_initial_call=True)
 def draw_url(filter_query, intensitynormmin):
     params = {}
     params["filter_query"] = filter_query
