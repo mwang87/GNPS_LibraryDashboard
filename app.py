@@ -130,25 +130,27 @@ MIDDLE_DASHBOARD = [
             html.Div(
                 id="SMILES_search",
                 children=[
-
                     dcc.Input(
                         id="SMILES_text",
                         type="text",
                         placeholder="input SMILES",
                         style={"flex": 1, "align-self": "stretch"}
                     ),
-                    html.Img(
-                        id="SMILES_preview_img",
-                        src="https://images.freeimages.com/images/previews/b05/more-marbles-less-random-1483002.jpg",
-                        height="150px",
-                        width="300px",
-                        style={"display": "none"}
-                    ),
-                    html.Div(id="SMILES_preview_text"),
+                    html.Div(children=[
+                        html.Img(
+                            id="SMILES_preview_img",
+                            src="https://images.freeimages.com/images/previews/b05/more-marbles-less-random-1483002.jpg",
+                            height="150px",
+                            width="300px",
+                            style={"display": "none"}
+                        ),
+                        html.Div(id="SMILES_preview_text", children="Structure Preview", style = {"display": "block", "color": "darkgray", "width": "300px", "text-align": "center"})
+                    ]),
+                    dbc.Button("Filter Structures", color="info",
+                               id="SMILES_button", n_clicks=0, style={"height": "50px"}),
+
                     html.P(id="SMILES_parsed_filter",
                            style={"display": "none"}),
-                    dbc.Button("Filter Structures", color="info",
-                               id="SMILES_button", n_clicks=0, style={"height": "50px"})
 
                 ],
                 style={"display": "flex",

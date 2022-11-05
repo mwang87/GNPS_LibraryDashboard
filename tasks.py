@@ -60,6 +60,31 @@ def _construct_df_selections(df, parameters):
     Returns:
         [type]: [description]
     """
+    if parameters["smiles_filter"] is not None and len(parameters["smiles_filter"]) > 0:
+        if len(smiles_map.keys()) == 0:
+            update_map()
+        
+        block = BlockLogs()
+        filter_mol = Chem.MolFromSmiles(parameters["smiles_filter"])
+        matches = []
+        for smile in smiles_map:
+            try:
+                temp_mol = smiles_map[smile][1]
+                if temp_mol.HasSubstructMatch(filter_mol):
+                    matches.extend(smiles_map[smile][0])
+            except:
+                pass
+        # mask = np.full(len(df), False)
+        # matches = set(matches)
+        # mask[matches] = True
+        del block
+        print('we have ', len(matches), 'number of matches! and a total of', len(smiles_map.keys()))
+
+        # df['index'] = vx.vconstant(True, len(df))
+        df['index'] = vx.vrange(0, len(df))
+        df = df[df.index.isin(matches)]
+        # df = df.iloc[matches]
+
     try:
         filter = parameters.get("filter", "")
         filtering_expressions = filter.split(' && ')
@@ -88,31 +113,6 @@ def _construct_df_selections(df, parameters):
                 df = df[df[column_part[1:-1]] < float(value_part)]
     except:
         pass
-    
-    if parameters["smiles_filter"] is not None and len(parameters["smiles_filter"]) > 0:
-        if len(smiles_map.keys()) == 0:
-            update_map()
-        
-        block = BlockLogs()
-        filter_mol = Chem.MolFromSmiles(parameters["smiles_filter"])
-        matches = []
-        for smile in smiles_map:
-            try:
-                temp_mol = smiles_map[smile][1]
-                if temp_mol.HasSubstructMatch(filter_mol):
-                    matches.extend(smiles_map[smile][0])
-            except:
-                pass
-        # mask = np.full(len(df), False)
-        # matches = set(matches)
-        # mask[matches] = True
-        del block
-        print('we have ', len(matches), 'number of matches! and a total of', len(smiles_map.keys()))
-
-        # df['index'] = vx.vconstant(True, len(df))
-        df['index'] = vx.vrange(0, len(df))
-        df = df[df.index.isin(matches)]
-        # df = df.iloc[matches]
 
     return df
 
