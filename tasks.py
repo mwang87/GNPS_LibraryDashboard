@@ -64,8 +64,13 @@ def _construct_df_selections(df, parameters):
         if len(smiles_map.keys()) == 0:
             update_map()
         
+        # move the rdkit logs to 'block' to increase speed
         block = BlockLogs()
+        
+        # 'filter_mol' contains the Mol representation of the filter
         filter_mol = Chem.MolFromSmiles(parameters["smiles_filter"])
+        
+        # for each SMILES representation, if it contains the filter we add the index of all its occurances to the matched array
         matches = []
         for smile in smiles_map:
             try:
@@ -74,16 +79,15 @@ def _construct_df_selections(df, parameters):
                     matches.extend(smiles_map[smile][0])
             except:
                 pass
-        # mask = np.full(len(df), False)
-        # matches = set(matches)
-        # mask[matches] = True
+        
+        #delete the logs
         del block
-        print('we have ', len(matches), 'number of matches! and a total of', len(smiles_map.keys()))
-
-        # df['index'] = vx.vconstant(True, len(df))
+        
+        # Add a virtual column to the dataframe 
         df['index'] = vx.vrange(0, len(df))
+
+        # filter df based on matches
         df = df[df.index.isin(matches)]
-        # df = df.iloc[matches]
 
     try:
         filter = parameters.get("filter", "")
@@ -199,8 +203,6 @@ def task_library_download():
         "https://gnps-external.ucsd.edu/gnpslibrary.json").json()
 
     for library_obj in library_list:
-        print("Loading", library_obj, len(library_list),
-              library_list.index(library_obj))
 
         library_url = "https://gnps-external.ucsd.edu/gnpslibrary/{}.json".format(
             library_obj["library"])
@@ -284,8 +286,6 @@ def task_query_data(parameters):
     sql_count_suffix = ""
     sql_query_suffix = ""
 
-    print('task query data parameters:', parameters)
-
     # Trying to do filtering
     try:
         filter = parameters.get("filter", "")
@@ -313,7 +313,6 @@ def task_query_data(parameters):
                 where_clauses.append("{} < {}".format(
                     column_part[1:-1], float(value_part)))
 
-        print("where_clauses! :", where_clauses)
 
         if len(where_clauses) > 0:
             sql_query_suffix += " WHERE " + " AND ".join(where_clauses)
@@ -341,7 +340,6 @@ def task_query_data(parameters):
         page_size, parameters.get("page_current", 0) * page_size)
 
     # Making sure the connection is good
-    print("task_query_data sql_query:", sql_query)
     con = get_connection()
     results_df = pd.read_sql(sql_query + sql_query_suffix, con)
 

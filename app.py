@@ -149,6 +149,7 @@ MIDDLE_DASHBOARD = [
                     dbc.Button("Filter Structures", color="info",
                                id="SMILES_button", n_clicks=0, style={"height": "50px"}),
 
+                    # This is a hidden element to fire the call back only if the smile structure is parseable
                     html.P(id="SMILES_parsed_filter",
                            style={"display": "none"}),
 
@@ -392,7 +393,6 @@ def update_table(page_current, page_size, sort_by, filter, smiles_filter):
         } for row in results_list
     ]
 
-    print('header list', len(results_list))
     return [results_list, tooltip_data, page_count, "Total Results {}".format(results_count)]
 
 
