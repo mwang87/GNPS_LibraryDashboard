@@ -8,6 +8,10 @@ To do it interactively
 
 ```make server-compose-interactive```
 
+interactive developement
+
+```make server-compose-dev```
+
 To access it in development
 
 [http://mingwangbeta.ucsd.edu:6546/](http://mingwangbeta.ucsd.edu:6546/)

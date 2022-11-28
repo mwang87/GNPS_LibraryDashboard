@@ -11,6 +11,10 @@ server-compose-interactive:
 	docker-compose build
 	docker-compose --compatibility up
 
+server-compose-dev:
+	docker-compose -f docker-compose.yml -f docker-compose-dev.yml build
+	docker-compose -f docker-compose.yml -f docker-compose-dev.yml --compatibility up
+
 server-compose:
 	docker-compose build
 	docker-compose --compatibility up -d

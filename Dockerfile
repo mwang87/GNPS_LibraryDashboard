@@ -4,9 +4,9 @@ MAINTAINER Mingxun Wang "mwang87@gmail.com"
 RUN apt-get update && apt-get install -y build-essential
 
 RUN conda install -c conda-forge mamba
-RUN mamba create -n omnisci -c conda-forge pyomnisci
+RUN mamba create -n omnisci python=3.8
 COPY requirements.txt .
-RUN /bin/bash -c 'source activate omnisci && pip install -r requirements.txt'
+RUN /bin/bash -c 'source activate omnisci && mamba install -c conda-forge pyomnisci && pip install -r requirements.txt'
 
 COPY . /app
 WORKDIR /app
