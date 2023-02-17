@@ -1,0 +1,196 @@
+---
+title: "Final Figures for Manuscript - Carnitine and Bile Acid Boxplot"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+# for updating R
+```{r}
+#install.packages("installr")
+
+#library(installr)
+
+#updateR()
+```
+
+```{r}
+# install required packages 
+#install.packages("ggplot2")
+#install.packages('egg')
+#install.packages('cowplot')
+
+library(ggplot2)
+#library(egg)
+#library(cowplot)
+
+```
+
+# loading data for carnitine plotting
+# data from diagnostic_peaks_carnitine_M+H.ipynb
+```{r}
+
+filtered_peak_df_carnitines_MH <- read.csv("C:/Users/Calle/OneDrive - UC San Diego/Dorrestein Lab/Ming_bioinformatics/Manuscript/final_figures/files_for_boxplot_carnitine/filtered_peak_df_carnitines_M+H.csv")
+
+filtered_peak_df_carnitines_MH$mz_binned_small_char <- as.character(filtered_peak_df_carnitines_MH$mz_binned_small)
+filtered_peak_df_carnitines_MH$source <- 'carnitine'
+
+peak_ratio_df_carnitines_MH <- read.csv("C:/Users/Calle/OneDrive - UC San Diego/Dorrestein Lab/Ming_bioinformatics/Manuscript/final_figures/files_for_boxplot_carnitine/peak_ratio_df_carnitines_M+H.csv")
+
+peak_ratio_df_carnitines_MH$mz_binned_small_char <- as.character(peak_ratio_df_carnitines_MH$mz_binned_small)
+peak_ratio_df_carnitines_MH$source <- 'carnitine'
+
+```
+
+# loading data for bile acid plotting
+# data from diagnostic_peaks_di_BA_M+H.ipynb
+```{r}
+
+filtered_peak_df_BA_di_3_7_MH <- read.csv("C:/Users/Calle/OneDrive - UC San Diego/Dorrestein Lab/Ming_bioinformatics/Manuscript/final_figures/files_for_boxplot_dihydroxy_BA/filtered_peak_df_BA_di_3_7_M+H.csv")
+
+filtered_peak_df_BA_di_3_7_MH$mz_binned_small_char <- as.character(filtered_peak_df_BA_di_3_7_MH$mz_binned_small)
+filtered_peak_df_BA_di_3_7_MH$source <- 'bile_acid'
+
+peak_ratio_df_BA_di_3_7_MH <- read.csv("C:/Users/Calle/OneDrive - UC San Diego/Dorrestein Lab/Ming_bioinformatics/Manuscript/final_figures/files_for_boxplot_dihydroxy_BA/peak_ratio_df_BA_di_3_7_M+H.csv")
+
+peak_ratio_df_BA_di_3_7_MH$mz_binned_small_char <- as.character(peak_ratio_df_BA_di_3_7_MH$mz_binned_small)
+peak_ratio_df_BA_di_3_7_MH$source <- 'bile_acid'
+
+
+```
+
+# carnitine plotting
+```{r}
+
+carnitine_boxplot <- (
+  ggplot(data =filtered_peak_df_carnitines_MH, aes(x = mz_binned_small, y =i_norm, group = mz_binned_small_char))
+  + geom_boxplot(colour="#1F3552",
+        fill="#4271AE",
+        alpha=0.7,
+        width=2,
+        outlier.shape = NA)
+  + xlab("m/z")
+  + ggtitle("Carnitines (M+H adducts)")
+  + theme(
+        text = element_text(size = 16),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.border=element_blank(),
+        #panel.background=element_blank(),
+        axis.text.x=element_text(size = 12, colour="black"),
+        axis.text.y=element_text(size = 12, colour="black"),
+        axis.title.y = element_text(size = 14.5, hjust=1),
+        axis.title.x = element_text(size = 14.5),
+        aspect.ratio = 4/3
+    )
+  + scale_y_continuous(
+    
+    # Features of the first axis
+    name = "Normalized Intensity",
+    
+    # Add a second axis and specify its features
+    sec.axis = dup_axis(name="Percent Occurrance"),
+    limits = c(-1, 1),
+    labels = abs
+  )
+  + scale_x_continuous(expand = c(0.4, 0.7),
+                       breaks = scales::pretty_breaks(n = 2))
+  + geom_col(data = peak_ratio_df_carnitines_MH, 
+             aes(
+               x=mz_binned_small,
+               y=-percent_occurrence,
+               group = mz_binned_small_char,
+               color="#521f22",
+               fill="ae4242",
+               alpha=0.7
+               ),
+             width=2
+             )
+  + geom_hline(yintercept = 0,size=1.3, colour="white")
+  + theme(legend.position = "none")
+)
+
+carnitine_boxplot
+
+ggsave("C:/Users/Calle/OneDrive - UC San Diego/Dorrestein Lab/Ming_bioinformatics/Manuscript/final_figures/carnitine_boxplot_final_fig.png", width = 4.5, height = 4, units ="in")
+
+```
+
+# bile acid plotting
+```{r}
+
+BA_boxplot <- (
+  ggplot(data =filtered_peak_df_BA_di_3_7_MH, aes(x = mz_binned_small, y =i_norm, group = mz_binned_small_char))
+  + geom_boxplot(colour="#1F3552",
+        fill="#4271AE",
+        alpha=0.7,
+        width=1,
+        outlier.shape = NA
+        )
+  + xlab("m/z")
+  + ggtitle("Dihydroxy Bile Acids (M+H adducts)")
+  + theme(
+        text = element_text(size = 16),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.border=element_blank(),
+        #panel.background=element_blank(),
+        axis.text.x=element_text(size = 12, colour="black"),
+        axis.text.y=element_text(size = 12, colour="black"),
+        axis.title.y = element_text(size = 14.5, hjust=1),
+        axis.title.x = element_text(size = 14.5)
+        #aspect.ratio = 1/3
+    )
+  
+  + scale_y_continuous(
+    
+    # Features of the first axis
+    name = "Normalized Intensity",
+    
+    # Add a second axis and specify its features
+    sec.axis = dup_axis(name="Percent Occurrance"),
+    limits = c(-1, 1),
+    labels = abs
+  )
+  + scale_x_continuous(expand = c(0, 0.1),
+                       breaks = scales::pretty_breaks(n = 10),
+                       limits = c(70, 350))
+  + geom_col(data = peak_ratio_df_BA_di_3_7_MH, 
+             aes(
+               x=mz_binned_small,
+               y=-percent_occurrence,
+               group = mz_binned_small_char,
+               color="#521f22",
+               fill="ae4242",
+               alpha=0.7
+               ),
+             width=0.5
+             )
+  +
+  geom_segment(aes(x=339.27, y=-1, xend=339.27, yend=-.70), arrow = arrow(length=unit(.3, 'cm')),
+               color='#fb318f', lwd=1.3)
+  +
+  geom_segment(aes(x=321.26, y=-1, xend=321.26, yend=-.68), arrow = arrow(length=unit(.3, 'cm')),
+               color='#3aba89', lwd=1.3)
+  +
+  geom_segment(aes(x=215.18, y=-1, xend=215.18, yend=-.65), arrow = arrow(length=unit(.3, 'cm')),
+               color='#ffbb24', lwd=1.3)
+  + geom_hline(yintercept = 0,linewidth=1.3, colour="white")
+  + theme(legend.position = "none")
+)
+
+
+
+
+BA_boxplot
+
+ggsave("C:/Users/Calle/OneDrive - UC San Diego/Dorrestein Lab/Ming_bioinformatics/Manuscript/final_figures/bileacid_boxplot_final_fig.png", width = 5, height = 4, units ="in")
+
+```
+
+
+
+
+
+
+
+
