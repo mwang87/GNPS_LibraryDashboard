@@ -55,8 +55,8 @@ NAVBAR = dbc.Navbar(
     children=[
         dbc.NavbarBrand(
             html.Img(
-                src="https://gnps-cytoscape.ucsd.edu/static/img/GNPS_logo.png", width="120px"),
-            href="https://gnps.ucsd.edu"
+                src="https://gnps2.org/static/img/logo.png", width="120px"),
+            href="https://gnps2.org"
         ),
         dbc.Nav(
             [
