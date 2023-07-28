@@ -61,7 +61,7 @@ def _construct_df_selections(df, parameters):
     Returns:
         [type]: [description]
     """
-    if parameters["smiles_filter"] is not None and len(parameters["smiles_filter"]) > 0:
+    if "smiles_filter" in parameters and parameters["smiles_filter"] is not None and len(parameters["smiles_filter"]) > 0:
         if len(smiles_map.keys()) == 0:
             update_map()
         
