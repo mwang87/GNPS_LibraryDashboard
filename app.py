@@ -599,7 +599,7 @@ def draw_spectrum(table_data, table_selected):
 
     url_params = urllib.parse.urlencode(mirror_plot_params)
 
-    usi_url = "https://metabolomics-usi.ucsd.edu/"
+    usi_url = "https://metabolomics-usi.gnps2.org/"
 
     img_obj = html.Img(src=usi_url + "svg?" + url_params)
     img_link_url = html.A(img_obj, href=usi_url +
