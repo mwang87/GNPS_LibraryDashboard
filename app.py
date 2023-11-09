@@ -702,6 +702,13 @@ def load():
     tasks.task_library_download.delay()
     return "Loading"
 
+# APIs to make sure workers are working
+@server.route("/api/librarytable")
+def librarytable():
+    result = tasks.task_query_data.delay({})
+    results_list, results_count = result.get()
+
+    return str(results_count)
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=5000, host="0.0.0.0")
