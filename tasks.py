@@ -124,7 +124,7 @@ def _construct_df_selections(df, parameters):
 
 # Here we will read the feather data and plot a box plot to understand variability
 @celery_instance.task(time_limit=60)
-def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutralloss=False):
+def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutralloss=False, binmztolerance="1", mztolerance_unit="da"):
 
     table_df = vx.open("./temp/" + 'table_*.feather')
     table_df = _construct_df_selections(table_df, parameters)
@@ -142,8 +142,20 @@ def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutr
     peak_df = peak_df.to_pandas_df()
 
     # Binning MZ values
+    try:
+        binmztolerance = float(binmztolerance)
+    except:
+        binmztolerance = 1
     if neutralloss is False:
-        peak_df['mz_binned'] = peak_df['mz'].astype('int')
+        if mztolerance_unit == "da" and binmztolerance == 1:
+            peak_df['mz_binned'] = peak_df['mz'].astype('int')
+        elif mztolerance_unit == "da":
+            peak_df['mz_binned'] = peak_df['mz'].apply(
+                lambda x: round(x/binmztolerance)*binmztolerance)
+        # elif mztolerance_unit == "ppm":
+        #     # part per million
+        #     peak_df['mz_binned'] = peak_df['mz'].apply(
+        #         lambda x: round(x)
     else:
         peak_df['mz_binned'] = peak_df['mz_nl'].astype('int')
     unique_mz_binned = peak_df['mz_binned'].unique()

@@ -170,8 +170,47 @@ MIDDLE_DASHBOARD = [
                 type="default",
             ),
             html.Br(),
-            dbc.Button("Update Histograms", block=True, color="info",
-                       id="histogram_button", n_clicks=0),
+            html.Hr(),
+            dbc.Card(
+                [
+                    dbc.CardHeader("Histograms Settings"),
+                    dbc.CardBody(
+                        [
+                            # input text for mz tolerance
+                            dbc.Col(
+                                [
+                                    dbc.InputGroup(
+                                        [
+                                            dbc.InputGroupAddon(
+                                                "bins mz tolerance", addon_type="prepend"),
+                                            dbc.Input(id='binmztolerance',
+                                            # accepts float and int
+                                            type="number", step="any",
+                                                      placeholder="bin mz tolerance", value=1),
+                                        ],
+                                        className="mb-3",
+                                        style={"matgin": "0"}
+                                    ),
+                                    # toggle for ppm or da
+                                    dbc.RadioItems(
+                                        options=[
+                                            {"label": "PPM", "value": "ppm", 'disabled':True},
+                                            {"label": "Da", "value": "da"},
+                                        ],
+                                        value="da",
+                                        id="mztolerance_unit",
+                                        style={"margin-left": "10px"}
+                                    ),
+                                ], style={"display": "flex", "flex-direction": "row", "align-items": "center"},
+                                width=4
+                            ),
+                            dbc.Button("Update Histograms", block=True, color="info",
+                            id="histogram_button", n_clicks=0),
+                        ]
+                    ),
+                ]
+            ),
+
             html.Hr(),
             dcc.Loading(
                 id="plots",
@@ -413,9 +452,11 @@ def update_table(page_current, page_size, sort_by, filter, smiles_filter):
         State('datatable', "filter_query"),
         State('intensitynormmin', 'value'),
         State('percentoccurmin', 'value'),
-        State('SMILES_parsed_filter', 'children')
+        State('SMILES_parsed_filter', 'children'),
+        State('binmztolerance', 'value'),
+        State('mztolerance_unit', 'value'),
 ], prevent_initial_call=True)
-def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin, smiles_filter):
+def update_table(n_clicks, page_current, page_size, sort_by, filter, intensitynormmin, percentoccurmin, smiles_filter, binmztolerance, mztolerance_unit):
     query_parameters = {}
     query_parameters["page_current"] = page_current
     query_parameters["page_size"] = page_size
@@ -453,9 +494,9 @@ def update_table(n_clicks, page_current, page_size, sort_by, filter, intensityno
         query_parameters, intensitynormmin=intensitynormmin)
     plot_peak_heatmap_result = tasks.plot_peak_heatmap.delay(query_parameters)
     box_plot_figure = tasks.plot_peak_boxplots.delay(
-        query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin)
+        query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin, binmztolerance=binmztolerance, mztolerance_unit=mztolerance_unit)
     box_plot_losses_figure = tasks.plot_peak_boxplots.delay(
-        query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin, neutralloss=True)
+        query_parameters, intensitynormmin=intensitynormmin, percentoccurmin=percentoccurmin, neutralloss=True, binmztolerance=binmztolerance, mztolerance_unit=mztolerance_unit)
 
     # Creating library size bar chart
     library_count_df = pd.DataFrame(library_count_result)

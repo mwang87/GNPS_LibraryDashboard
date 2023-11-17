@@ -5,7 +5,7 @@ services:
       - ${PWD}/app.py:/app/app.py:rw
       - ${PWD}/tasks.py:/app/tasks.py:rw
       - ${PWD}/utils.py:/app/utils.py:rw
-    command: /app/run_develop_server.sh
+    command: /app/run_server_develop.sh
 
   gnpslibrary-worker:
     volumes:
