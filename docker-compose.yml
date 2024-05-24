@@ -20,7 +20,7 @@ services:
       #LETSENCRYPT_HOST: gnps-library.ucsd.edu
       LETSENCRYPT_HOST: library.gnps2.org
       LETSENCRYPT_EMAIL: mwang87@gmail.com
-    restart: on-failure
+    restart: always
     command: /app/run_server.sh
     deploy:
       resources:
@@ -36,7 +36,7 @@ services:
       - ./logs:/app/logs:rw
       - ./temp:/app/temp:rw
     command: /app/run_worker.sh
-    restart: on-failure
+    restart: always
     depends_on: 
       - gnpslibrary-redis
       - gnpslibrary-rabbitmq
@@ -58,7 +58,7 @@ services:
       - ./logs:/app/logs:rw
       - ./temp:/app/temp:rw
     command: /app/run_workerload.sh
-    restart: on-failure
+    restart: always
     depends_on: 
       - gnpslibrary-redis
       - gnpslibrary-rabbitmq
@@ -76,7 +76,7 @@ services:
       dockerfile: Dockerfile.omnisci
     container_name: gnpslibrary-omniscidb
     image: omnisci/core-os-cpu
-    restart: on-failure
+    restart: always
     networks:
       - default
     volumes:
@@ -90,14 +90,14 @@ services:
   gnpslibrary-rabbitmq:
     container_name: gnpslibrary-rabbitmq
     image: rabbitmq
-    restart: on-failure
+    restart: always
     networks:
       - default
 
   gnpslibrary-redis:
     container_name: gnpslibrary-redis
     image: redis
-    restart: on-failure
+    restart: always
     networks:
       - default
 
