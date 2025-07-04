@@ -13,6 +13,7 @@ import requests
 from utils import load_data_gnps_json
 from rdkit import Chem
 from rdkit.rdBase import BlockLogs
+import traceback
 
 from pyomnisci import connect
 
@@ -205,9 +206,15 @@ def task_library_download():
 
     for library_obj in library_list:
 
-        library_url = "https://external.gnps2.org/gnpslibrary//gnpslibrary/{}.json".format(
+        library_url = "https://external.gnps2.org/gnpslibrary/{}.json".format(
             library_obj["library"])
-        library_spectra_list = requests.get(library_url).json()
+        try:
+            library_spectra_list = requests.get(library_url).json()
+        except requests.exceptions.JSONDecodeError as jde:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            print("Error decoding JSON for library {}: {}".format(
+                library_obj["library"], jde), file=sys.stderr, flush=True)
+            continue
 
         # Read into pandas without peaks and inject into database
         library_df = pd.DataFrame(library_spectra_list)
