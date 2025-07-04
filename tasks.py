@@ -201,11 +201,11 @@ def task_computeheartbeat():
 @celery_instance.task(time_limit=3600)
 def task_library_download():
     library_list = requests.get(
-        "https://gnps-external.ucsd.edu/gnpslibrary.json").json()
+        "https://external.gnps2.org/gnpslibrary.json").json()
 
     for library_obj in library_list:
 
-        library_url = "https://gnps-external.ucsd.edu/gnpslibrary/{}.json".format(
+        library_url = "https://external.gnps2.org/gnpslibrary//gnpslibrary/{}.json".format(
             library_obj["library"])
         library_spectra_list = requests.get(library_url).json()
 
