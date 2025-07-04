@@ -13,6 +13,7 @@ import requests
 from utils import load_data_gnps_json
 from rdkit import Chem
 from rdkit.rdBase import BlockLogs
+import traceback
 
 from pyomnisci import connect
 
@@ -123,7 +124,7 @@ def _construct_df_selections(df, parameters):
 
 
 # Here we will read the feather data and plot a box plot to understand variability
-@celery_instance.task(time_limit=60)
+@celery_instance.task(time_limit=120)
 def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutralloss=False):
 
     table_df = vx.open("./temp/" + 'table_*.feather')
@@ -201,13 +202,19 @@ def task_computeheartbeat():
 @celery_instance.task(time_limit=3600)
 def task_library_download():
     library_list = requests.get(
-        "https://gnps-external.ucsd.edu/gnpslibrary.json").json()
+        "https://external.gnps2.org/gnpslibrary.json").json()
 
     for library_obj in library_list:
 
-        library_url = "https://gnps-external.ucsd.edu/gnpslibrary/{}.json".format(
+        library_url = "https://external.gnps2.org/gnpslibrary/{}.json".format(
             library_obj["library"])
-        library_spectra_list = requests.get(library_url).json()
+        try:
+            library_spectra_list = requests.get(library_url).json()
+        except requests.exceptions.JSONDecodeError as jde:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            print("Error decoding JSON for library {}: {}".format(
+                library_obj["library"], jde), file=sys.stderr, flush=True)
+            continue
 
         # Read into pandas without peaks and inject into database
         library_df = pd.DataFrame(library_spectra_list)
@@ -277,7 +284,7 @@ def task_library_download():
     update_map()
 
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def task_query_data(parameters):
     table_name = "gnpslibrary"
 
@@ -351,7 +358,7 @@ def task_query_data(parameters):
     return results_df.to_dict(orient="records"), results_count
 
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def task_query_data_with_smiles(parameters):
     page_size = parameters.get("page_size", 20)
     table_df = vx.open("./temp/" + 'table_*.feather')
@@ -392,7 +399,7 @@ def task_query_bigdata(parameters):
     return table_df.to_dict(orient="records"), len(table_df)
 
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def query_library_counts():
     con = get_connection()
 
@@ -441,7 +448,7 @@ def plot_peakloss_histogram(parameters, intensitynormmin=0):
     return plot_peak_histogram(parameters, intensitynormmin=intensitynormmin, neutralloss=True)
 
 
-@celery_instance.task(time_limit=60)
+@celery_instance.task(time_liFmit=60)
 def plot_peak_heatmap(parameters):
     table_df = vx.open("./temp/" + 'table_*.feather')
     table_df = _construct_df_selections(table_df, parameters)
@@ -474,7 +481,7 @@ def plot_peak_heatmap(parameters):
 #     "cleanup": {
 #         "task": "tasks._task_cleanup",
 #         "schedule": 3600
-#     }
+#     }tasks.
 # }
 
 
