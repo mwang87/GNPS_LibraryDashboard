@@ -124,7 +124,7 @@ def _construct_df_selections(df, parameters):
 
 
 # Here we will read the feather data and plot a box plot to understand variability
-@celery_instance.task(time_limit=60)
+@celery_instance.task(time_limit=120)
 def plot_peak_boxplots(parameters, intensitynormmin=0, percentoccurmin=20, neutralloss=False):
 
     table_df = vx.open("./temp/" + 'table_*.feather')
@@ -284,7 +284,7 @@ def task_library_download():
     update_map()
 
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def task_query_data(parameters):
     table_name = "gnpslibrary"
 
@@ -358,7 +358,7 @@ def task_query_data(parameters):
     return results_df.to_dict(orient="records"), results_count
 
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def task_query_data_with_smiles(parameters):
     page_size = parameters.get("page_size", 20)
     table_df = vx.open("./temp/" + 'table_*.feather')
@@ -399,7 +399,7 @@ def task_query_bigdata(parameters):
     return table_df.to_dict(orient="records"), len(table_df)
 
 
-@celery_instance.task(time_limit=30)
+@celery_instance.task(time_limit=60)
 def query_library_counts():
     con = get_connection()
 
@@ -448,7 +448,7 @@ def plot_peakloss_histogram(parameters, intensitynormmin=0):
     return plot_peak_histogram(parameters, intensitynormmin=intensitynormmin, neutralloss=True)
 
 
-@celery_instance.task(time_limit=60)
+@celery_instance.task(time_liFmit=60)
 def plot_peak_heatmap(parameters):
     table_df = vx.open("./temp/" + 'table_*.feather')
     table_df = _construct_df_selections(table_df, parameters)
@@ -481,7 +481,7 @@ def plot_peak_heatmap(parameters):
 #     "cleanup": {
 #         "task": "tasks._task_cleanup",
 #         "schedule": 3600
-#     }
+#     }tasks.
 # }
 
 
