@@ -448,7 +448,7 @@ def plot_peakloss_histogram(parameters, intensitynormmin=0):
     return plot_peak_histogram(parameters, intensitynormmin=intensitynormmin, neutralloss=True)
 
 
-@celery_instance.task(time_liFmit=60)
+@celery_instance.task(time_limit=60)
 def plot_peak_heatmap(parameters):
     table_df = vx.open("./temp/" + 'table_*.feather')
     table_df = _construct_df_selections(table_df, parameters)
